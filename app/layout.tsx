@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import AuthStatusModal from "@/app/components/AuthStatusModal";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,6 +29,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-zinc-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100`}
       >
         {children}
+        <AuthStatusModal />
       </body>
     </html>
   );
