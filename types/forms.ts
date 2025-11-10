@@ -1,18 +1,19 @@
 import { z } from "zod";
 
 const emailSchema = z
-  .string({ required_error: "El correo es obligatorio." })
+  .string()
   .trim()
   .toLowerCase()
+  .min(1, "El correo es obligatorio.")
   .email("Ingresa un correo válido.");
 
 const nameSchema = z
-  .string({ required_error: "Tu nombre es obligatorio." })
+  .string()
   .trim()
   .min(1, "Tu nombre es obligatorio.");
 
 const passwordSchema = z
-  .string({ required_error: "La contraseña es obligatoria." })
+  .string()
   .min(8, "La contraseña debe tener al menos 8 caracteres.")
   .regex(/[A-Z]/, "Incluye al menos una letra mayúscula." )
   .regex(/[a-z]/, "Incluye al menos una letra minúscula." )
@@ -21,9 +22,7 @@ const passwordSchema = z
 
 export const LoginFormSchema = z.object({
   email: emailSchema,
-  password: z
-    .string({ required_error: "La contraseña es obligatoria." })
-    .min(1, "Ingresa tu contraseña."),
+  password: z.string().min(1, "Ingresa tu contraseña."),
 });
 
 export type LoginFormValues = z.infer<typeof LoginFormSchema>;
@@ -33,9 +32,7 @@ export const RegisterFormSchema = z
     name: nameSchema,
     email: emailSchema,
     password: passwordSchema,
-    confirmPassword: z
-      .string({ required_error: "Confirma tu contraseña." })
-      .min(1, "Confirma tu contraseña."),
+    confirmPassword: z.string().min(1, "Confirma tu contraseña."),
   })
   .refine((values) => values.password === values.confirmPassword, {
     message: "Las contraseñas no coinciden.",
