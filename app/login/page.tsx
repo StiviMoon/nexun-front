@@ -160,14 +160,14 @@ const LoginPage = () => {
             aria-disabled={isSubmitDisabled}
             aria-busy={isEmailSignInLoading}
             aria-label="Iniciar sesión"
-            className="h-12 w-full rounded-xl text-sm font-semibold"
+            className="btn-shine h-12 w-full rounded-xl text-sm font-semibold shadow-lg shadow-purple-500/50 transition-all duration-300 hover:shadow-xl hover:shadow-purple-600/60 hover:scale-105"
           >
             {isEmailSignInLoading ? (
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
             ) : (
               <>
-                <span>Iniciar sesión</span>
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                <span className="relative z-10">Iniciar sesión</span>
+                <ArrowRight className="relative z-10 h-4 w-4" aria-hidden="true" />
               </>
             )}
           </Button>
@@ -231,9 +231,9 @@ const LoginPage = () => {
           </Button>
         </div>
 
-        <div className="text-center text-sm text-muted-foreground">
+        <div className="w-full text-center text-sm text-muted-foreground">
           ¿No tienes una cuenta?{" "}
-          <Link className="font-medium text-primary underline-offset-4 hover:underline" href="/sign">
+          <Link className="font-medium text-white underline-offset-4 hover:underline" href="/sign">
             Regístrate aquí
           </Link>
         </div>

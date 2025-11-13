@@ -1,6 +1,7 @@
 "use client";
 
 import { ReactNode } from "react";
+import Image from "next/image";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -12,8 +13,15 @@ type AuthCardProps = {
 };
 
 const BrandBadge = () => (
-  <div className="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-neutral-900 text-xl font-bold text-white shadow-md dark:bg-neutral-100 dark:text-neutral-900">
-    N
+  <div className="mx-auto mb-4 inline-flex h-20 w-20 items-center justify-center rounded-2xl">
+    <Image
+      src="/logo.svg"
+      alt="Nexun Logo"
+      width={80}
+      height={80}
+      className="h-20 w-20"
+      priority
+    />
   </div>
 );
 

@@ -91,7 +91,7 @@ const DashboardPage = () => {
   const initials = getInitials(currentUser.displayName, currentUser.email);
 
   return (
-    <main className="relative min-h-screen bg-muted/20 px-4 py-16 dark:bg-background">
+    <main className="relative min-h-screen bg-background px-4 py-16">
       <div className="pointer-events-none absolute inset-0 bg-grid-pattern opacity-40 dark:opacity-20" />
       <section className="relative z-10 mx-auto flex w-full max-w-5xl flex-col gap-8">
         <Card className="border-border/60 bg-background/95 shadow-xl backdrop-blur">
