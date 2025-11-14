@@ -12,7 +12,7 @@ import {
   CardTitle
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { useAuth, useAuthAction } from "@/app/hooks/useAuth";
+import { useAuthWithQuery } from "@/hooks/useAuthWithQuery";
 import Image from "next/image";
 
 const getInitials = (displayName?: string | null, email?: string | null) => {
@@ -37,10 +37,15 @@ const getInitials = (displayName?: string | null, email?: string | null) => {
 
 const DashboardPage = () => {
   const router = useRouter();
-  const { currentUser, isAuthInitializing, authErrors, isSignOutLoading } = useAuth();
-
-  const signOutUser = useAuthAction((state) => state.signOutUser);
-  const clearAuthError = useAuthAction((state) => state.clearAuthError);
+  const { 
+    currentUser, 
+    isAuthInitializing, 
+    authErrors, 
+    isSignOutLoading,
+    signOutUser,
+    clearAuthError,
+    isLogoutPending
+  } = useAuthWithQuery();
 
   useEffect(() => {
     clearAuthError("signOut");
@@ -75,17 +80,17 @@ const DashboardPage = () => {
     return null;
   }
 
-  const formattedLastSignIn = currentUser.metadata.lastSignInTime
+  const formattedLastSignIn = currentUser.updatedAt
     ? new Intl.DateTimeFormat("es-ES", {
         dateStyle: "medium",
         timeStyle: "short"
-      }).format(new Date(currentUser.metadata.lastSignInTime))
+      }).format(new Date(currentUser.updatedAt))
     : "";
 
-  const formattedCreationTime = currentUser.metadata.creationTime
+  const formattedCreationTime = currentUser.createdAt
     ? new Intl.DateTimeFormat("es-ES", {
         dateStyle: "medium"
-      }).format(new Date(currentUser.metadata.creationTime))
+      }).format(new Date(currentUser.createdAt))
     : "";
 
   const initials = getInitials(currentUser.displayName, currentUser.email);
@@ -94,7 +99,7 @@ const DashboardPage = () => {
     <main className="relative min-h-screen bg-background px-4 py-16">
       <div className="pointer-events-none absolute inset-0 bg-grid-pattern opacity-40 dark:opacity-20" />
       <section className="relative z-10 mx-auto flex w-full max-w-5xl flex-col gap-8">
-        <Card className="border-border/60 bg-background/95 shadow-xl backdrop-blur">
+        <Card className="rounded-xl border border-border/60 bg-background/95 shadow-xl backdrop-blur transition-shadow">
           <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="space-y-2">
               <CardDescription className="uppercase tracking-[0.3em] text-muted-foreground">
@@ -113,10 +118,10 @@ const DashboardPage = () => {
               className="h-10 rounded-xl px-6"
               onClick={handleSignOut}
               aria-label="Cerrar sesión"
-              aria-busy={isSignOutLoading}
-              disabled={isSignOutLoading}
+              aria-busy={isSignOutLoading || isLogoutPending}
+              disabled={isSignOutLoading || isLogoutPending}
             >
-              {isSignOutLoading ? "Cerrando sesión..." : "Cerrar sesión"}
+              {isSignOutLoading || isLogoutPending ? "Cerrando sesión..." : "Cerrar sesión"}
             </Button>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -127,7 +132,7 @@ const DashboardPage = () => {
             ) : null}
 
             <div className="grid gap-6 md:grid-cols-[280px,1fr]">
-              <Card className="h-full items-center text-center">
+              <Card className="h-full rounded-xl border border-border/60 bg-background/95 shadow-xl backdrop-blur transition-shadow">
                 <CardContent className="flex flex-col items-center gap-4 pt-6">
                   <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted text-2xl font-semibold text-foreground">
                     {currentUser.photoURL ? (
@@ -157,7 +162,7 @@ const DashboardPage = () => {
                 </CardContent>
               </Card>
 
-              <Card className="h-full bg-background/90">
+              <Card className="h-full rounded-xl border border-border/60 bg-background/95 shadow-xl backdrop-blur transition-shadow">
                 <CardHeader>
                   <CardTitle className="text-lg">Detalles de la cuenta</CardTitle>
                   <CardDescription>
@@ -198,13 +203,13 @@ const DashboardPage = () => {
                         Proveedores conectados
                       </p>
                       <p className="mt-2 flex flex-wrap gap-2 text-sm font-medium">
-                        {currentUser.providerData.length > 0
-                          ? currentUser.providerData.map((provider) => (
+                        {currentUser.providerIds.length > 0
+                          ? currentUser.providerIds.map((providerId) => (
                               <span
-                                className="rounded-lg bg-background px-3 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                                key={provider.providerId}
+                                className="rounded-xl border border-border/60 bg-background px-3 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                                key={providerId}
                               >
-                                {provider.providerId.replace(".com", "")}
+                                {providerId.replace(".com", "").replace("google.com", "Google").replace("password", "Email")}
                               </span>
                             ))
                           : "No disponible"}
@@ -212,7 +217,7 @@ const DashboardPage = () => {
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-dashed border-border/60 bg-muted/20 p-6 text-center text-sm text-muted-foreground">
+                  <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-6 text-center text-sm text-muted-foreground">
                     Próximamente podrás ver métricas y accesos directos personalizados aquí.
                   </div>
                 </CardContent>

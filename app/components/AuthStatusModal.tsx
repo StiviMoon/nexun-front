@@ -1,38 +1,50 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { useAuth } from "@/app/hooks/useAuth";
+import { useAuthWithQuery } from "@/hooks/useAuthWithQuery";
 
 type ModalContent = {
   title: string;
   description: string;
 };
 
+const MIN_DISPLAY_TIME = 1000;
+
 const AuthStatusModal = () => {
-  const { isEmailSignInLoading, isEmailSignUpLoading, isGoogleLoading, isSignOutLoading } = useAuth();
+  const [isMounted] = useState(() => typeof window !== "undefined");
+  const { 
+    isEmailSignInLoading, 
+    isEmailSignUpLoading, 
+    isGoogleLoading, 
+    isSignOutLoading,
+    isLoginPending,
+    isRegisterPending,
+    isGoogleAuthPending,
+    isLogoutPending
+  } = useAuthWithQuery();
   const [displayContent, setDisplayContent] = useState<ModalContent | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const interactionStartRef = useRef<number | null>(null);
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
-  const modalContent = useMemo(() => {
-    if (isSignOutLoading) {
+  const modalContent = useMemo<ModalContent | null>(() => {
+    if (isSignOutLoading || isLogoutPending) {
       return {
         title: "Cerrando sesión...",
         description: "Estamos finalizando tu sesión de manera segura."
       };
     }
 
-    if (isEmailSignUpLoading) {
+    if (isEmailSignUpLoading || isRegisterPending) {
       return {
         title: "Creando tu cuenta...",
         description: "Estamos preparando todo para que puedas comenzar."
       };
     }
 
-    if (isEmailSignInLoading || isGoogleLoading) {
+    if (isEmailSignInLoading || isGoogleLoading || isLoginPending || isGoogleAuthPending) {
       return {
         title: "Iniciando sesión...",
         description: "Estamos preparando tu espacio personalizado."
@@ -40,81 +52,70 @@ const AuthStatusModal = () => {
     }
 
     return null;
-  }, [isEmailSignInLoading, isEmailSignUpLoading, isGoogleLoading, isSignOutLoading]);
+  }, [
+    isEmailSignInLoading, 
+    isEmailSignUpLoading, 
+    isGoogleLoading, 
+    isSignOutLoading,
+    isLoginPending,
+    isRegisterPending,
+    isGoogleAuthPending,
+    isLogoutPending
+  ]);
 
-  useEffect(() => {
-    const scheduleHide = (delay: number) => {
-      if (hideTimeoutRef.current) {
-        clearTimeout(hideTimeoutRef.current);
-        hideTimeoutRef.current = null;
-      }
+  const cleanup = useCallback(() => {
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+    if (animationFrameRef.current !== null) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+  }, []);
 
+  const scheduleHide = useCallback(
+    (delay: number) => {
+      cleanup();
       hideTimeoutRef.current = setTimeout(() => {
         setIsVisible(false);
         setDisplayContent(null);
         interactionStartRef.current = null;
-        hideTimeoutRef.current = null;
       }, delay);
-    };
+    },
+    [cleanup]
+  );
+
+  useEffect(() => {
+    if (!isMounted) {
+      return;
+    }
+
+    cleanup();
 
     if (modalContent) {
-      if (hideTimeoutRef.current) {
-        clearTimeout(hideTimeoutRef.current);
-        hideTimeoutRef.current = null;
-      }
-
-      if (animationFrameRef.current !== null) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-
       animationFrameRef.current = requestAnimationFrame(() => {
         interactionStartRef.current = Date.now();
         setDisplayContent(modalContent);
         setIsVisible(true);
       });
-
-      return;
+      return cleanup;
     }
 
-    if (animationFrameRef.current !== null) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
-    }
-
-    const elapsed = Date.now() - (interactionStartRef.current ?? Date.now());
-    const remaining = Math.max(0, 1000 - elapsed);
-
-    if (!displayContent) {
+    if (displayContent) {
+      const elapsed = Date.now() - (interactionStartRef.current ?? Date.now());
+      const remaining = Math.max(0, MIN_DISPLAY_TIME - elapsed);
       scheduleHide(remaining);
-      return;
     }
 
-    scheduleHide(remaining);
-
-    return () => {
-      if (hideTimeoutRef.current) {
-        clearTimeout(hideTimeoutRef.current);
-        hideTimeoutRef.current = null;
-      }
-      if (animationFrameRef.current !== null) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
-    };
-  }, [displayContent, modalContent]);
+    return cleanup;
+  }, [modalContent, displayContent, isMounted, cleanup, scheduleHide]);
 
   useEffect(() => {
-    return () => {
-      if (hideTimeoutRef.current) {
-        clearTimeout(hideTimeoutRef.current);
-      }
-      if (animationFrameRef.current !== null) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, []);
+    return cleanup;
+  }, [cleanup]);
 
-  if (!displayContent) {
+  if (!isMounted || !displayContent) {
     return null;
   }
 
@@ -122,7 +123,7 @@ const AuthStatusModal = () => {
     <Dialog open={isVisible} onOpenChange={() => {}}>
       <DialogContent
         showCloseButton={false}
-        className="w-full max-w-xs border border-border/80 bg-background/95 p-6 text-center shadow-2xl backdrop-blur"
+        className="w-full max-w-xs rounded-xl border border-border/60 bg-background/95 p-6 text-center shadow-xl backdrop-blur transition-shadow"
         aria-live="assertive"
       >
         <DialogTitle className="sr-only">{displayContent.title}</DialogTitle>

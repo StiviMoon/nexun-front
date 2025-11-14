@@ -27,7 +27,12 @@ const BrandBadge = () => (
 
 const AuthCard = ({ title, description, children, className }: AuthCardProps) => {
   return (
-    <Card className={cn("border-border/60 bg-background/95 shadow-xl backdrop-blur", className)}>
+    <Card
+      className={cn(
+        "w-full border-border/60 bg-background/95 shadow-xl backdrop-blur transition-shadow",
+        className
+      )}
+    >
       <CardHeader className="space-y-3 text-center">
         <BrandBadge />
         <CardTitle className="text-3xl font-semibold text-foreground">{title}</CardTitle>

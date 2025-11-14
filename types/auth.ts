@@ -1,11 +1,13 @@
 import { User } from "firebase/auth";
+import { UserProfile } from "./api";
 
 export type AuthErrorKey = "signIn" | "signUp" | "google" | "signOut";
 
 export type AuthErrors = Partial<Record<AuthErrorKey, string>>;
 
 export type AuthState = {
-  currentUser: User | null;
+  currentUser: UserProfile | null;
+  firebaseUser: User | null; // Minimal Firebase user, only for auth state
   isAuthInitializing: boolean;
   hasInitializedListener: boolean;
   isEmailSignInLoading: boolean;
@@ -20,6 +22,13 @@ export type AuthState = {
   registerWithEmailPassword: (name: string, email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOutUser: () => Promise<void>;
+  // Setters para React Query
+  setCurrentUser: (user: UserProfile | null) => void;
+  setFirebaseUser: (user: User | null) => void;
+  setEmailSignInLoading: (loading: boolean) => void;
+  setEmailSignUpLoading: (loading: boolean) => void;
+  setGoogleLoading: (loading: boolean) => void;
+  setSignOutLoading: (loading: boolean) => void;
 };
 
 export type AuthActionState = Pick<

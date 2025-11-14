@@ -1,19 +1,26 @@
 import { create } from "zustand";
-import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signInWithPopup,
-  signOut,
-  updateProfile,
-  onAuthStateChanged
-} from "firebase/auth";
-import { auth, googleProvider } from "@/utils/firabase";
+import { onAuthStateChanged, getAuth } from "firebase/auth";
+import { initializeApp, getApps } from "firebase/app";
 import { getReadableSignInError, getReadableSignUpError } from "@/utils/authErrors";
 import { AuthState } from "@/types/auth";
-import { saveUserProfile } from "@/utils/repositories/userRepository";
+import { apiClient } from "@/utils/api/client";
+import { firebaseConfig } from "@/config/firebase";
+import { 
+  exchangeCustomTokenForIdToken, 
+  signInWithGoogle as firebaseGoogleAuth,
+  signOutFirebase
+} from "@/utils/auth/tokenService";
+import { verifyPassword } from "@/utils/auth/firebaseAuthAPI";
+
+const getFirebaseAuth = () => {
+  const existingApps = getApps();
+  const app = existingApps.length > 0 ? existingApps[0] : initializeApp(firebaseConfig);
+  return getAuth(app);
+};
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   currentUser: null,
+  firebaseUser: null,
   isAuthInitializing: true,
   hasInitializedListener: false,
   isEmailSignInLoading: false,
@@ -21,6 +28,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isGoogleLoading: false,
   isSignOutLoading: false,
   authErrors: {},
+
+  // Setters para React Query
+  setCurrentUser: (user) => set({ currentUser: user }),
+  setFirebaseUser: (user) => set({ firebaseUser: user }),
+  setEmailSignInLoading: (loading) => set({ isEmailSignInLoading: loading }),
+  setEmailSignUpLoading: (loading) => set({ isEmailSignUpLoading: loading }),
+  setGoogleLoading: (loading) => set({ isGoogleLoading: loading }),
+  setSignOutLoading: (loading) => set({ isSignOutLoading: loading }),
 
   initializeAuthListener: () => {
     const { hasInitializedListener } = get();
@@ -31,8 +46,35 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     set({ hasInitializedListener: true, isAuthInitializing: true });
 
-    onAuthStateChanged(auth, (user) => {
-      set({ currentUser: user, isAuthInitializing: false });
+    const auth = getFirebaseAuth();
+
+    onAuthStateChanged(auth, async (firebaseUser) => {
+      set({ firebaseUser, isAuthInitializing: true });
+
+      if (firebaseUser) {
+        try {
+          // Get ID token from Firebase
+          const idToken = await firebaseUser.getIdToken();
+          
+          // Verify token with backend and get user profile
+          const response = await apiClient.verifyToken(idToken);
+          
+          if (response.success && response.user) {
+            // Store token for API requests
+            apiClient.setAuthToken(idToken);
+            set({ currentUser: response.user, isAuthInitializing: false });
+          } else {
+            set({ currentUser: null, isAuthInitializing: false });
+          }
+        } catch (error) {
+          console.error("Error verifying token:", error);
+          set({ currentUser: null, isAuthInitializing: false });
+        }
+      } else {
+        // User signed out
+        apiClient.clearAuthToken();
+        set({ currentUser: null, firebaseUser: null, isAuthInitializing: false });
+      }
     });
   },
 
@@ -62,11 +104,43 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isEmailSignInLoading: true });
 
     try {
-      const credential = await signInWithEmailAndPassword(auth, email, password);
-      await saveUserProfile(credential.user);
+      // First, verify password with Firebase Auth REST API
+      // This will throw an error if credentials are invalid
+      await verifyPassword(email, password);
+      
+      // If password is valid, get custom token from backend
+      const response = await apiClient.login(email, password);
+      
+      if (!response.success || !response.token) {
+        // If backend returns an error, use it 
+        const errorCode = response.error || "auth/invalid-credential";
+        throw new Error(errorCode);
+      }
+
+      // Exchange custom token for ID token
+      const idToken = await exchangeCustomTokenForIdToken(response.token);
+      
+      // Use the user profile from login response, or verify token as fallback
+      if (response.user) {
+        // Store token for API requests
+        apiClient.setAuthToken(idToken);
+        set({ currentUser: response.user });
+      } else {
+        // Fallback: verify token to get user profile
+        const verifyResponse = await apiClient.verifyToken(idToken);
+        
+        if (verifyResponse.success && verifyResponse.user) {
+          apiClient.setAuthToken(idToken);
+          set({ currentUser: verifyResponse.user });
+        } else {
+          throw new Error(verifyResponse.error || "Failed to verify token");
+        }
+      }
     } catch (error) {
       if (typeof error === "object" && error !== null && "code" in error) {
         setAuthError("signIn", getReadableSignInError(String(error.code)));
+      } else if (error instanceof Error && error.message.includes("auth/")) {
+        setAuthError("signIn", getReadableSignInError(error.message));
       } else {
         setAuthError("signIn", "Ocurrió un error inesperado.");
       }
@@ -86,16 +160,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isEmailSignUpLoading: true });
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-
-      if (name) {
-        await updateProfile(userCredential.user, { displayName: name });
+      // Register with backend - backend creates user and returns custom token
+      const response = await apiClient.register(email, password, name);
+      
+      if (!response.success || !response.token || !response.user) {
+        throw new Error(response.error || "Failed to register user");
       }
 
-      await saveUserProfile(userCredential.user);
+      // Exchange custom token for ID token
+      const idToken = await exchangeCustomTokenForIdToken(response.token);
+      
+      // Store token for API requests
+      apiClient.setAuthToken(idToken);
+      set({ currentUser: response.user });
     } catch (error) {
       if (typeof error === "object" && error !== null && "code" in error) {
         setAuthError("signUp", getReadableSignUpError(String(error.code)));
+      } else if (error instanceof Error && error.message.includes("auth/")) {
+        setAuthError("signUp", getReadableSignUpError(error.message));
       } else {
         setAuthError("signUp", "Ocurrió un error inesperado.");
       }
@@ -116,8 +198,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isGoogleLoading: true });
 
     try {
-      const credential = await signInWithPopup(auth, googleProvider);
-      await saveUserProfile(credential.user);
+      // Authenticate with Google - minimal Firebase usage only for popup
+      const { idToken } = await firebaseGoogleAuth();
+      
+      // Verify token with backend and save profile
+      const response = await apiClient.googleAuth(idToken);
+      
+      if (response.success && response.user) {
+        // Store token for API requests
+        apiClient.setAuthToken(idToken);
+        set({ currentUser: response.user });
+      } else {
+        throw new Error(response.error || "Failed to authenticate with Google");
+      }
     } catch (error) {
       setAuthError("google", "No fue posible autenticarte con Google.");
       throw error;
@@ -134,7 +227,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isSignOutLoading: true });
 
     try {
-      await signOut(auth);
+      // Logout from backend
+      try {
+        await apiClient.logout();
+      } catch (error) {
+        // Continue with signout even if backend fails
+        console.error("Backend logout error:", error);
+      }
+      
+      // Clear token
+      apiClient.clearAuthToken();
+      
+      // Sign out from Firebase (minimal usage)
+      await signOutFirebase();
+      
+      // Clear user state
+      set({ currentUser: null, firebaseUser: null });
     } catch (error) {
       setAuthError("signOut", "No fue posible cerrar sesión. Inténtalo de nuevo.");
       throw error;
