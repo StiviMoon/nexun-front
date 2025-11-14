@@ -28,9 +28,9 @@ const useAuthForm = <T extends z.ZodSchema>({
     const { name, value } = event.target;
     clearAuthError(errorKey);
     setFormData((previous) => ({
-      ...previous,
+      ...(previous as Record<string, unknown>),
       [name]: value
-    }));
+    } as z.infer<T>));
   };
 
   const isFormValid = useMemo(() => {
