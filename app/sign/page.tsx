@@ -267,14 +267,14 @@ const RegisterPage = () => {
             aria-disabled={isSubmitDisabled}
             aria-busy={isEmailSignUpLoading}
             aria-label="Crear cuenta"
-            className="h-12 w-full rounded-xl text-sm font-semibold"
+            className="btn-shine h-12 w-full rounded-xl text-sm font-semibold shadow-lg shadow-purple-500/50 transition-all duration-300 hover:shadow-xl hover:shadow-purple-600/60 hover:scale-105"
           >
             {isEmailSignUpLoading ? (
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
             ) : (
               <>
-                <span>Crear cuenta</span>
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                <span className="relative z-10">Crear cuenta</span>
+                <ArrowRight className="relative z-10 h-4 w-4" aria-hidden="true" />
               </>
             )}
           </Button>
@@ -340,7 +340,7 @@ const RegisterPage = () => {
 
         <p className="text-center text-sm text-muted-foreground">
           ¿Ya tienes una cuenta?{" "}
-          <Link className="font-medium text-primary underline-offset-4 hover:underline" href="/login">
+          <Link className="font-medium text-white underline-offset-4 hover:underline" href="/login">
             Inicia sesión
           </Link>
         </p>
