@@ -60,8 +60,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           const response = await apiClient.verifyToken(idToken);
           
           if (response.success && response.user) {
-            // Store token for API requests
-            apiClient.setAuthToken(idToken);
+            // Token is now managed automatically by the API client via Firebase
             set({ currentUser: response.user, isAuthInitializing: false });
           } else {
             set({ currentUser: null, isAuthInitializing: false });
@@ -72,7 +71,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
       } else {
         // User signed out
-        apiClient.clearAuthToken();
         set({ currentUser: null, firebaseUser: null, isAuthInitializing: false });
       }
     });
@@ -122,15 +120,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       
       // Use the user profile from login response, or verify token as fallback
       if (response.user) {
-        // Store token for API requests
-        apiClient.setAuthToken(idToken);
+        // Token is now managed automatically by the API client via Firebase
         set({ currentUser: response.user });
       } else {
         // Fallback: verify token to get user profile
         const verifyResponse = await apiClient.verifyToken(idToken);
         
         if (verifyResponse.success && verifyResponse.user) {
-          apiClient.setAuthToken(idToken);
           set({ currentUser: verifyResponse.user });
         } else {
           throw new Error(verifyResponse.error || "Failed to verify token");
@@ -170,8 +166,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Exchange custom token for ID token
       const idToken = await exchangeCustomTokenForIdToken(response.token);
       
-      // Store token for API requests
-      apiClient.setAuthToken(idToken);
+      // Token is now managed automatically by the API client via Firebase
       set({ currentUser: response.user });
     } catch (error) {
       if (typeof error === "object" && error !== null && "code" in error) {
@@ -205,8 +200,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const response = await apiClient.googleAuth(idToken);
       
       if (response.success && response.user) {
-        // Store token for API requests
-        apiClient.setAuthToken(idToken);
+        // Token is now managed automatically by the API client via Firebase
         set({ currentUser: response.user });
       } else {
         throw new Error(response.error || "Failed to authenticate with Google");
@@ -234,9 +228,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // Continue with signout even if backend fails
         console.error("Backend logout error:", error);
       }
-      
-      // Clear token
-      apiClient.clearAuthToken();
       
       // Sign out from Firebase (minimal usage)
       await signOutFirebase();

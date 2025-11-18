@@ -1,18 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { io, Socket } from "socket.io-client";
 import {
   ChatMessage,
   ChatRoom,
-  JoinRoomData,
-  SendMessageData,
   CreateRoomData,
   ChatError
 } from "@/types/chat";
-import { getAuthToken } from "@/utils/chat/getAuthToken";
-
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001";
+import { ChatService } from "@/utils/services/chatService";
 
 interface UseChatReturn {
   // Connection state
@@ -37,8 +32,9 @@ interface UseChatReturn {
   setCurrentRoom: (room: ChatRoom | null) => void;
 }
 
-export const useChat = (): UseChatReturn => {
-  const socketRef = useRef<Socket | null>(null);
+export const useChat = (useGateway = false): UseChatReturn => {
+  const chatServiceRef = useRef<ChatService | null>(null);
+  const listenersRegisteredRef = useRef(false);
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<ChatError | null>(null);
@@ -46,9 +42,9 @@ export const useChat = (): UseChatReturn => {
   const [messages, setMessages] = useState<Record<string, ChatMessage[]>>({});
   const [currentRoom, setCurrentRoom] = useState<ChatRoom | null>(null);
 
-  // Connect to Socket.IO server
+  // Connect to Socket.IO server using ChatService
   const connect = useCallback(async () => {
-    if (socketRef.current?.connected) {
+    if (chatServiceRef.current?.isConnected()) {
       return;
     }
 
@@ -56,40 +52,115 @@ export const useChat = (): UseChatReturn => {
     setError(null);
 
     try {
-      const token = await getAuthToken();
-
-      if (!token) {
-        throw new Error("No authentication token available");
+      // Initialize ChatService if not already done
+      if (!chatServiceRef.current) {
+        chatServiceRef.current = new ChatService(useGateway);
       }
 
-      // Disconnect existing socket if any
-      if (socketRef.current) {
-        socketRef.current.disconnect();
+      const chatService = chatServiceRef.current;
+
+      // Connect to the service before registering listeners
+      const socket = await chatService.connect();
+
+      if (!listenersRegisteredRef.current) {
+        chatService.onRoomsList((receivedRooms: ChatRoom[]) => {
+          console.log("📋 Received rooms list:", receivedRooms);
+          setRooms(receivedRooms);
+        });
+
+        chatService.onMessage((message: ChatMessage) => {
+          console.log("💬 New message:", message);
+          setMessages((prev) => {
+            const roomMessages = prev[message.roomId] || [];
+            // Avoid duplicates
+            if (roomMessages.some((m) => m.id === message.id)) {
+              return prev;
+            }
+            return {
+              ...prev,
+              [message.roomId]: [...roomMessages, message]
+            };
+          });
+        });
+
+        chatService.onRoomJoined((data: { roomId: string; room: ChatRoom }) => {
+          console.log("✅ Joined room:", data.roomId);
+          setRooms((prev) => {
+            const exists = prev.find((r) => r.id === data.roomId);
+            if (exists) {
+              return prev;
+            }
+            return [...prev, data.room];
+          });
+        });
+
+        chatService.onRoomCreated((room: ChatRoom) => {
+          console.log("🏠 Room created:", room.id);
+          setRooms((prev) => [...prev, room]);
+          setCurrentRoom(room);
+        });
+
+        chatService.onRoomLeft((data: { roomId: string }) => {
+          console.log("👋 Left room:", data.roomId);
+          setCurrentRoom((prev) => (prev?.id === data.roomId ? null : prev));
+        });
+
+        chatService.onRoomDetails((room: ChatRoom) => {
+          console.log("📝 Room details:", room.id);
+          setRooms((prev) => {
+            const index = prev.findIndex((r) => r.id === room.id);
+            if (index >= 0) {
+              const updated = [...prev];
+              updated[index] = room;
+              return updated;
+            }
+            return [...prev, room];
+          });
+        });
+
+        chatService.onMessagesList((data: { roomId: string; messages: ChatMessage[] }) => {
+          console.log(`📨 Received ${data.messages.length} messages for room ${data.roomId}`);
+          setMessages((prev) => ({
+            ...prev,
+            [data.roomId]: data.messages
+          }));
+        });
+
+        chatService.onUserOnline((data: { userId: string }) => {
+          console.log(`🟢 User ${data.userId} is online`);
+        });
+
+        chatService.onUserOffline((data: { userId: string }) => {
+          console.log(`🔴 User ${data.userId} is offline`);
+        });
+
+        chatService.onError((err: { message: string; code?: string }) => {
+          console.error("Chat error:", err);
+          setError({
+            message: err.message,
+            code: err.code || "UNKNOWN_ERROR"
+          });
+        });
+
+        listenersRegisteredRef.current = true;
       }
 
-      // Create new socket connection
-      const socket = io(SOCKET_URL, {
-        auth: {
-          token
-        },
-        transports: ["websocket", "polling"],
-        reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionAttempts: 5
-      });
-
-      socketRef.current = socket;
-
-      // Connection events
+      // Listen to socket connection events
       socket.on("connect", () => {
         console.log("✅ Connected to chat server");
         setIsConnected(true);
         setIsConnecting(false);
         setError(null);
+        // Request initial rooms list
+        try {
+          chatService.listRooms();
+        } catch (listError) {
+          console.error("Failed to request rooms list:", listError);
+        }
       });
 
-      socket.on("disconnect", (reason) => {
-        console.log("❌ Disconnected from chat server:", reason);
+      socket.on("disconnect", () => {
+        console.log("❌ Disconnected from chat server");
         setIsConnected(false);
         setIsConnecting(false);
       });
@@ -111,136 +182,6 @@ export const useChat = (): UseChatReturn => {
           });
         }
       });
-
-      // Room events
-      socket.on("rooms:list", (receivedRooms: ChatRoom[]) => {
-        console.log("📋 Received rooms list:", receivedRooms);
-        setRooms(receivedRooms);
-      });
-
-      socket.on("room:joined", (data: { roomId: string; room: ChatRoom }) => {
-        console.log("✅ Joined room:", data.roomId);
-        setRooms((prev) => {
-          const exists = prev.find((r) => r.id === data.roomId);
-          if (exists) {
-            return prev;
-          }
-          return [...prev, data.room];
-        });
-      });
-
-      socket.on("room:left", (data: { roomId: string }) => {
-        console.log("👋 Left room:", data.roomId);
-        setCurrentRoom((prev) => (prev?.id === data.roomId ? null : prev));
-      });
-
-      socket.on("room:created", (room: ChatRoom) => {
-        console.log("🏠 Room created:", room.id);
-        setRooms((prev) => [...prev, room]);
-        setCurrentRoom(room);
-      });
-
-      socket.on("room:details", (room: ChatRoom) => {
-        console.log("📝 Room details:", room.id);
-        setRooms((prev) => {
-          const index = prev.findIndex((r) => r.id === room.id);
-          if (index >= 0) {
-            const updated = [...prev];
-            updated[index] = room;
-            return updated;
-          }
-          return [...prev, room];
-        });
-      });
-
-      socket.on("room:user-joined", (data: { roomId: string; userId: string; userName?: string }) => {
-        console.log(`👤 User ${data.userName || data.userId} joined room ${data.roomId}`);
-      });
-
-      socket.on("room:user-left", (data: { roomId: string; userId: string; userName?: string }) => {
-        console.log(`👋 User ${data.userName || data.userId} left room ${data.roomId}`);
-      });
-
-      // Message events
-      socket.on("message:new", (message: ChatMessage) => {
-        console.log("💬 New message:", message);
-        setMessages((prev) => {
-          const roomMessages = prev[message.roomId] || [];
-          // Avoid duplicates
-          if (roomMessages.some((m) => m.id === message.id)) {
-            return prev;
-          }
-          return {
-            ...prev,
-            [message.roomId]: [...roomMessages, message]
-          };
-        });
-      });
-
-      socket.on("messages:list", (data: { roomId: string; messages: ChatMessage[] }) => {
-        console.log(`📨 Received ${data.messages.length} messages for room ${data.roomId}`);
-        setMessages((prev) => ({
-          ...prev,
-          [data.roomId]: data.messages
-        }));
-      });
-
-      // User status events
-      socket.on("user:online", (data: { userId: string }) => {
-        console.log(`🟢 User ${data.userId} is online`);
-      });
-
-      socket.on("user:offline", (data: { userId: string }) => {
-        console.log(`🔴 User ${data.userId} is offline`);
-      });
-
-      // Error handling
-      socket.on("error", (err: ChatError | unknown) => {
-        // Log full error details for debugging
-        console.error("Chat error received:", {
-          error: err,
-          type: typeof err,
-          isObject: err && typeof err === "object",
-          keys: err && typeof err === "object" ? Object.keys(err) : []
-        });
-        
-        // Normalize error object
-        let normalizedError: ChatError;
-        
-        if (err && typeof err === "object") {
-          const errorObj = err as Partial<ChatError> & Record<string, unknown>;
-          
-          // Check if object is empty
-          if (Object.keys(errorObj).length === 0) {
-            normalizedError = {
-              message: "An error occurred on the server",
-              code: "SERVER_ERROR"
-            };
-          } else {
-            normalizedError = {
-              message: 
-                (errorObj.message as string) || 
-                (errorObj.error as string) || 
-                (errorObj.msg as string) ||
-                "An error occurred",
-              code: (errorObj.code as string) || "UNKNOWN_ERROR"
-            };
-          }
-        } else if (typeof err === "string") {
-          normalizedError = {
-            message: err,
-            code: "UNKNOWN_ERROR"
-          };
-        } else {
-          normalizedError = {
-            message: "An unknown error occurred",
-            code: "UNKNOWN_ERROR"
-          };
-        }
-        
-        console.error("Normalized error:", normalizedError);
-        setError(normalizedError);
-      });
     } catch (err) {
       console.error("Failed to connect:", err);
       setIsConnecting(false);
@@ -249,14 +190,15 @@ export const useChat = (): UseChatReturn => {
         code: "CONNECTION_FAILED"
       });
     }
-  }, []);
+  }, [useGateway]);
 
   // Disconnect from server
   const disconnect = useCallback(() => {
-    if (socketRef.current) {
-      socketRef.current.disconnect();
-      socketRef.current = null;
+    if (chatServiceRef.current) {
+      chatServiceRef.current.disconnect();
+      chatServiceRef.current = null;
     }
+    listenersRegisteredRef.current = false;
     setIsConnected(false);
     setIsConnecting(false);
     setRooms([]);
@@ -267,13 +209,19 @@ export const useChat = (): UseChatReturn => {
   // Join a room
   const joinRoom = useCallback(
     (roomId: string) => {
-      if (!socketRef.current?.connected) {
+      if (!chatServiceRef.current?.isConnected()) {
         setError({ message: "Not connected to chat server", code: "NOT_CONNECTED" });
         return;
       }
 
-      const data: JoinRoomData = { roomId };
-      socketRef.current.emit("room:join", data);
+      try {
+        chatServiceRef.current.joinRoom(roomId);
+      } catch (err) {
+        setError({
+          message: err instanceof Error ? err.message : "Failed to join room",
+          code: "JOIN_ERROR"
+        });
+      }
     },
     []
   );
@@ -281,12 +229,16 @@ export const useChat = (): UseChatReturn => {
   // Leave a room
   const leaveRoom = useCallback(
     (roomId: string) => {
-      if (!socketRef.current?.connected) {
+      if (!chatServiceRef.current?.isConnected()) {
         return;
       }
 
-      const data: JoinRoomData = { roomId };
-      socketRef.current.emit("room:leave", data);
+      try {
+        chatServiceRef.current.leaveRoom(roomId);
+      } catch (err) {
+        // Silently fail on leave
+        console.error("Failed to leave room:", err);
+      }
     },
     []
   );
@@ -294,7 +246,7 @@ export const useChat = (): UseChatReturn => {
   // Send a message
   const sendMessage = useCallback(
     (roomId: string, content: string, type: "text" | "image" | "file" = "text") => {
-      if (!socketRef.current?.connected) {
+      if (!chatServiceRef.current?.isConnected()) {
         setError({ message: "Not connected to chat server", code: "NOT_CONNECTED" });
         return;
       }
@@ -303,13 +255,14 @@ export const useChat = (): UseChatReturn => {
         return;
       }
 
-      const data: SendMessageData = {
-        roomId,
-        content: content.trim(),
-        type
-      };
-
-      socketRef.current.emit("message:send", data);
+      try {
+        chatServiceRef.current.sendMessage(roomId, content.trim(), type);
+      } catch (err) {
+        setError({
+          message: err instanceof Error ? err.message : "Failed to send message",
+          code: "SEND_ERROR"
+        });
+      }
     },
     []
   );
@@ -317,12 +270,19 @@ export const useChat = (): UseChatReturn => {
   // Create a room
   const createRoom = useCallback(
     (data: CreateRoomData) => {
-      if (!socketRef.current?.connected) {
+      if (!chatServiceRef.current?.isConnected()) {
         setError({ message: "Not connected to chat server", code: "NOT_CONNECTED" });
         return;
       }
 
-      socketRef.current.emit("room:create", data);
+      try {
+        chatServiceRef.current.createRoom(data.name, data.type, data.participants);
+      } catch (err) {
+        setError({
+          message: err instanceof Error ? err.message : "Failed to create room",
+          code: "CREATE_ERROR"
+        });
+      }
     },
     []
   );
@@ -330,12 +290,19 @@ export const useChat = (): UseChatReturn => {
   // Get room details
   const getRoom = useCallback(
     (roomId: string) => {
-      if (!socketRef.current?.connected) {
+      if (!chatServiceRef.current?.isConnected()) {
         setError({ message: "Not connected to chat server", code: "NOT_CONNECTED" });
         return;
       }
 
-      socketRef.current.emit("room:get", roomId);
+      try {
+        chatServiceRef.current.getRoom(roomId);
+      } catch (err) {
+        setError({
+          message: err instanceof Error ? err.message : "Failed to get room",
+          code: "GET_ROOM_ERROR"
+        });
+      }
     },
     []
   );
@@ -343,12 +310,19 @@ export const useChat = (): UseChatReturn => {
   // Get messages for a room
   const getMessages = useCallback(
     (roomId: string, limit = 50, lastMessageId?: string) => {
-      if (!socketRef.current?.connected) {
+      if (!chatServiceRef.current?.isConnected()) {
         setError({ message: "Not connected to chat server", code: "NOT_CONNECTED" });
         return;
       }
 
-      socketRef.current.emit("messages:get", { roomId, limit, lastMessageId });
+      try {
+        chatServiceRef.current.getMessages(roomId, limit, lastMessageId || null);
+      } catch (err) {
+        setError({
+          message: err instanceof Error ? err.message : "Failed to get messages",
+          code: "GET_MESSAGES_ERROR"
+        });
+      }
     },
     []
   );

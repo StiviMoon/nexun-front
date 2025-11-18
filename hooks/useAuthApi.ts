@@ -56,8 +56,7 @@ export const useRegister = () => {
     onSuccess: (data) => {
       // Actualizar cache del usuario actual
       queryClient.setQueryData(authKeys.me(), data.user);
-      // Guardar token (no se intercambia aquí, se hace en useAuthWithQuery)
-      // apiClient.setAuthToken se llamará después de intercambiar el custom token
+      // Token is now managed automatically by the API client via Firebase
     },
     onError: () => {
       // Limpiar cache en caso de error
@@ -118,9 +117,7 @@ export const useGoogleAuth = () => {
         throw new Error(response.error || "Failed to authenticate with Google");
       }
 
-      // Guardar token
-      apiClient.setAuthToken(idToken);
-
+      // Token is now managed automatically by the API client via Firebase
       return response.user;
     },
     onSuccess: (user) => {
@@ -148,9 +145,7 @@ export const useVerifyToken = () => {
         throw new Error(response.error || "Failed to verify token");
       }
 
-      // Guardar token para futuras peticiones
-      apiClient.setAuthToken(idToken);
-
+      // Token is now managed automatically by the API client via Firebase
       return response.user;
     },
     onSuccess: (user) => {
@@ -179,8 +174,7 @@ export const useLogout = () => {
         console.error("Backend logout error:", error);
       }
       
-      // Limpiar token
-      apiClient.clearAuthToken();
+      // Token is now managed automatically by the API client via Firebase
     },
     onSuccess: () => {
       // Limpiar todo el cache de autenticación
@@ -189,7 +183,6 @@ export const useLogout = () => {
     onError: () => {
       // Limpiar cache incluso si hay error
       queryClient.removeQueries({ queryKey: authKeys.all });
-      apiClient.clearAuthToken();
     },
   });
 };

@@ -7,7 +7,6 @@ import { ChatRoom as ChatRoomType } from "@/types/chat";
 import { ChatSidebar } from "./components/ChatSidebar";
 import { ChatRoom } from "./components/ChatRoom";
 import { MessageSquare } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 export default function ChatPage() {
   const { currentUser } = useAuth();
@@ -55,13 +54,7 @@ export default function ChatPage() {
       getMessages(selectedRoom.id, 50);
       setCurrentRoom(selectedRoom);
     }
-
-    return () => {
-      if (selectedRoom && isConnected) {
-        leaveRoom(selectedRoom.id);
-      }
-    };
-  }, [selectedRoom, isConnected, joinRoom, leaveRoom, getMessages, setCurrentRoom]);
+  }, [selectedRoom, isConnected, joinRoom, getMessages, setCurrentRoom]);
 
   // Actualizar sala seleccionada cuando se crea una nueva
   useEffect(() => {

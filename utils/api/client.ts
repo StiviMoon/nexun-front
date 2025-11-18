@@ -1,12 +1,50 @@
-import { AuthApiResponse   } from "@/types/api";
+import { AuthApiResponse } from "@/types/api";
+import { getAuth } from "firebase/auth";
+import { initializeApp, getApps } from "firebase/app";
+import { firebaseConfig } from "@/config/firebase";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;
   error?: string;
 }
+
+const getFirebaseAuth = () => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const existingApps = getApps();
+  const app = existingApps.length > 0 ? existingApps[0] : initializeApp(firebaseConfig);
+  return getAuth(app);
+};
+
+/**
+ * Get Firebase ID token for authenticated requests
+ */
+const getIdToken = async (forceRefresh = false): Promise<string | null> => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const auth = getFirebaseAuth();
+    if (!auth) {
+      return null;
+    }
+
+    const user = auth.currentUser;
+    if (!user) {
+      return null;
+    }
+
+    return await user.getIdToken(forceRefresh);
+  } catch (error) {
+    console.error("Error getting ID token:", error);
+    return null;
+  }
+};
 
 class ApiClient {
   private baseUrl: string;
@@ -21,22 +59,17 @@ class ApiClient {
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     
+    // Get Firebase ID token for authentication
+    const token = await getIdToken();
+    
     const config: RequestInit = {
       ...options,
       headers: {
         "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
         ...options.headers,
       },
     };
-
-    // Add auth token if available
-    const token = this.getAuthToken();
-    if (token) {
-      config.headers = {
-        ...config.headers,
-        Authorization: `Bearer ${token}`,
-      };
-    }
 
     try {
       const response = await fetch(url, config);
@@ -55,64 +88,121 @@ class ApiClient {
     }
   }
 
-  private getAuthToken(): string | null {
-    if (typeof window === "undefined") {
-      return null;
-    }
-    return localStorage.getItem("authToken");
-  }
-
-  setAuthToken(token: string): void {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("authToken", token);
-    }
-  }
-
-  clearAuthToken(): void {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("authToken");
-    }
-  }
-
-  // Auth endpoints
+  // Auth endpoints - matching guide structure
   async register(email: string, password: string, name?: string): Promise<AuthApiResponse> {
-    return this.request<AuthApiResponse>("/auth/register", {
+    return this.request<AuthApiResponse>("/api/auth/register", {
       method: "POST",
       body: JSON.stringify({ email, password, name }),
     });
   }
 
   async login(email: string, password: string): Promise<AuthApiResponse> {
-    return this.request<AuthApiResponse>("/auth/login", {
+    return this.request<AuthApiResponse>("/api/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     });
   }
 
   async googleAuth(idToken: string): Promise<AuthApiResponse> {
-    return this.request<AuthApiResponse>("/auth/google", {
+    // For Google Auth, we use the idToken from the popup, not the current user's token
+    // because the user isn't authenticated in our system yet
+    const url = `${this.baseUrl}/api/auth/google`;
+    
+    if (!idToken || idToken.trim() === "") {
+      throw new Error("ID token is required for Google authentication");
+    }
+
+    // Debug: Log token length to verify it's complete
+    console.log("Google Auth - Token length:", idToken.length);
+    console.log("Google Auth - URL:", url);
+
+    const requestBody = { idToken };
+    const config: RequestInit = {
       method: "POST",
-      body: JSON.stringify({ idToken }),
-    });
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    };
+
+    try {
+      console.log("Google Auth - Sending request to:", url);
+      const response = await fetch(url, config);
+      console.log("Google Auth - Response status:", response.status, response.statusText);
+      
+      // Check if response is ok before trying to parse JSON
+      if (!response.ok) {
+        // Try to get error message from response
+        let errorMessage = `Request failed with status ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch {
+          // If response is not JSON, try to get text
+          try {
+            const errorText = await response.text();
+            if (errorText) {
+              errorMessage = errorText;
+            }
+          } catch {
+            // Ignore if we can't parse error
+          }
+        }
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      console.log("Google Auth - Response data:", data);
+
+      if (!data.success) {
+        throw new Error(data.error || "Google authentication failed");
+      }
+
+      return data;
+    } catch (error) {
+      // Log error for debugging
+      console.error("Google Auth Error:", error);
+      
+      if (error instanceof Error) {
+        // Re-throw with more context if it's a network error
+        if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
+          throw new Error("Network error: Could not connect to the server. Please check if the backend is running.");
+        }
+        throw error;
+      }
+      throw new Error("An unexpected error occurred during Google authentication");
+    }
   }
 
-  async verifyToken(idToken: string): Promise<AuthApiResponse> {
-    return this.request<AuthApiResponse>("/auth/verify", {
+  async verifyToken(idToken?: string): Promise<AuthApiResponse> {
+    // If idToken is provided, use it; otherwise get from Firebase
+    const token = idToken || (await getIdToken());
+    
+    if (!token) {
+      throw new Error("No authentication token available");
+    }
+
+    return this.request<AuthApiResponse>("/api/auth/verify", {
       method: "POST",
-      body: JSON.stringify({ idToken }),
+      body: JSON.stringify({ idToken: token }),
     });
   }
 
   async getCurrentUser(): Promise<AuthApiResponse> {
-    return this.request<AuthApiResponse>("/auth/me", {
+    return this.request<AuthApiResponse>("/api/auth/me", {
       method: "GET",
     });
   }
 
   async logout(): Promise<AuthApiResponse> {
-    return this.request<AuthApiResponse>("/auth/logout", {
+    return this.request<AuthApiResponse>("/api/auth/logout", {
       method: "POST",
     });
+  }
+
+  // Helper method to get ID token (for Socket.IO connections)
+  async getAuthToken(forceRefresh = false): Promise<string | null> {
+    return getIdToken(forceRefresh);
   }
 }
 
