@@ -65,6 +65,8 @@ export class ChatService {
 
     // Disconnect existing socket if any
     if (this.socket) {
+      // Remove all listeners before disconnecting
+      this.socket.removeAllListeners();
       this.socket.disconnect();
     }
 
@@ -77,42 +79,74 @@ export class ChatService {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: 5,
+      timeout: 20000, // 20 seconds timeout
     });
 
-    // Connection events
+    // Connection events (register once)
     this.socket.on("connect", () => {
       console.log("✅ Connected to chat service");
     });
 
-    this.socket.on("disconnect", () => {
-      console.log("❌ Disconnected from chat service");
+    this.socket.on("disconnect", (reason) => {
+      console.log("❌ Disconnected from chat service:", reason);
     });
 
-    this.socket.on("error", (error) => {
-      console.error("Socket error:", error);
+    // Only log socket errors if they have meaningful information
+    this.socket.on("error", (error: unknown) => {
+      // Only log if error has meaningful information
+      if (error && typeof error === "object" && Object.keys(error).length > 0) {
+        console.error("Socket error:", error);
+      } else if (error && typeof error === "string" && error.length > 0) {
+        console.error("Socket error:", error);
+      }
+      // Silently ignore empty errors
+    });
+
+    // Listen for connection errors (more reliable than "error" event)
+    this.socket.on("connect_error", (err) => {
+      // This is handled by useChat hook, just log here
+      if (err.message?.includes("auth") || err.message?.includes("unauthorized")) {
+        console.error("Authentication error:", err.message);
+      } else {
+        console.error("Connection error:", err.message || err);
+      }
     });
 
     // Listen for token expiration
     this.socket.on("auth:error", async () => {
+      console.log("🔄 Token expired, refreshing...");
       // Refresh token and reconnect
       const newToken = await getIdToken(true);
       if (newToken && this.socket) {
         // Update auth token and reconnect
         (this.socket.auth as { token: string }).token = newToken;
         this.socket.disconnect();
-        this.socket.connect();
+        // Small delay before reconnecting
+        setTimeout(() => {
+          if (this.socket) {
+            this.socket.connect();
+          }
+        }, 500);
       }
     });
 
     return this.socket;
   }
 
-  // Join a room
-  joinRoom(roomId: string): void {
+  // Join a room (with optional code for private rooms)
+  joinRoom(roomId: string, code?: string): void {
     if (!this.socket?.connected) {
       throw new Error("Not connected to chat service");
     }
-    this.socket.emit("room:join", { roomId });
+    this.socket.emit("room:join", { roomId, code });
+  }
+
+  // Join a room by code only (searches for room with that code)
+  joinRoomByCode(code: string): void {
+    if (!this.socket?.connected) {
+      throw new Error("Not connected to chat service");
+    }
+    this.socket.emit("room:join-by-code", { code });
   }
 
   // Leave a room
@@ -136,16 +170,22 @@ export class ChatService {
   }
 
   // Create a room
-  // Note: Backend expects "private" | "group", but we accept all types for flexibility
-  createRoom(name: string, type: "private" | "group" | "direct" | "channel", participants: string[] = []): void {
+  // Backend expects: name, type ("direct" | "group" | "channel"), visibility ("public" | "private"), and optionally description, participants
+  createRoom(
+    name: string,
+    type: "direct" | "group" | "channel",
+    visibility: "public" | "private",
+    description?: string,
+    participants: string[] = []
+  ): void {
     if (!this.socket?.connected) {
       throw new Error("Not connected to chat service");
     }
-    // Map frontend types to backend types
-    const backendType = type === "direct" || type === "channel" ? "group" : type;
     this.socket.emit("room:create", {
       name,
-      type: backendType,
+      type,
+      visibility,
+      description,
       participants,
     });
   }

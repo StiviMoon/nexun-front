@@ -2,14 +2,16 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useChat } from "@/app/hooks/useChat";
-import { useAuth } from "@/app/hooks/useAuth";
+import { useAuthWithQuery } from "@/hooks/useAuthWithQuery";
 import { ChatRoom as ChatRoomType } from "@/types/chat";
 import { ChatSidebar } from "./components/ChatSidebar";
 import { ChatRoom } from "./components/ChatRoom";
 import { MessageSquare } from "lucide-react";
+import { AppLayout } from "@/components/ui/AppLayout";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 export default function ChatPage() {
-  const { currentUser } = useAuth();
+  const { currentUser } = useAuthWithQuery();
   const {
     isConnected,
     isConnecting,
@@ -21,6 +23,7 @@ export default function ChatPage() {
     currentRoom,
     createRoom,
     joinRoom,
+    joinRoomByCode,
     leaveRoom,
     sendMessage,
     getMessages,
@@ -34,27 +37,43 @@ export default function ChatPage() {
     return selectedRoom ? messages[selectedRoom.id] || [] : [];
   }, [selectedRoom, messages]);
 
-  // Conectar automáticamente cuando hay usuario
+  // Conectar automáticamente cuando hay usuario (con pequeño delay para asegurar autenticación)
   useEffect(() => {
-    if (currentUser && !isConnected && !isConnecting) {
-      connect();
+    if (!currentUser || isConnected || isConnecting) {
+      return;
     }
 
+    // Small delay to ensure Firebase auth is fully initialized
+    const connectTimer = setTimeout(() => {
+      if (currentUser && !isConnected && !isConnecting) {
+        connect();
+      }
+    }, 100);
+
     return () => {
+      clearTimeout(connectTimer);
       if (isConnected) {
         disconnect();
       }
     };
   }, [currentUser, isConnected, isConnecting, connect, disconnect]);
 
-  // Unirse a la sala cuando se selecciona
+  // Verificar si el usuario es participante de la sala seleccionada
+  const isParticipant = useMemo(() => {
+    if (!selectedRoom || !currentUser) return false;
+    return selectedRoom.participants.includes(currentUser.uid);
+  }, [selectedRoom, currentUser]);
+
+  // Unirse a la sala cuando se selecciona (solo si ya es participante)
   useEffect(() => {
-    if (selectedRoom && isConnected) {
-      joinRoom(selectedRoom.id);
+    if (selectedRoom && isConnected && isParticipant) {
+      // Si es privada, necesitamos el código (ya lo tiene en selectedRoom.code)
+      const code = selectedRoom.visibility === "private" ? selectedRoom.code : undefined;
+      joinRoom(selectedRoom.id, code);
       getMessages(selectedRoom.id, 50);
       setCurrentRoom(selectedRoom);
     }
-  }, [selectedRoom, isConnected, joinRoom, getMessages, setCurrentRoom]);
+  }, [selectedRoom, isConnected, isParticipant, joinRoom, getMessages, setCurrentRoom]);
 
   // Actualizar sala seleccionada cuando se crea una nueva
   useEffect(() => {
@@ -63,14 +82,40 @@ export default function ChatPage() {
     }
   }, [currentRoom, selectedRoom]);
 
-  const handleCreateRoom = (data: { name: string; description?: string; type: "direct" | "group" | "channel" }) => {
+  // Escuchar errores del servidor para mostrar mensajes al usuario
+  useEffect(() => {
+    if (error) {
+      console.error("Chat error:", error);
+      // Los errores se manejan en el componente ChatSidebar
+    }
+  }, [error]);
+
+  const handleCreateRoom = (data: { name: string; description?: string; type: "direct" | "group" | "channel"; visibility: "public" | "private" }) => {
     if (!isConnected) {
       return;
     }
     createRoom(data);
   };
 
+  const handleJoinWithCode = (code: string) => {
+    if (!isConnected || !code.trim()) {
+      return;
+    }
+    // Usar el nuevo método joinRoomByCode que busca la sala automáticamente
+    joinRoomByCode(code.trim().toUpperCase());
+  };
+
   const handleSelectRoom = (room: ChatRoomType) => {
+    setSelectedRoom(room);
+  };
+
+  const handleJoinPublicRoom = (room: ChatRoomType) => {
+    if (!isConnected || !currentUser) {
+      return;
+    }
+    // Para salas públicas, simplemente intentamos unirnos
+    // El backend debería agregarnos como participantes automáticamente
+    joinRoom(room.id);
     setSelectedRoom(room);
   };
 
@@ -98,40 +143,21 @@ export default function ChatPage() {
   };
 
   if (!currentUser) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="text-center space-y-4 max-w-sm">
-          <h1 className="text-2xl font-light text-foreground">Inicia sesión</h1>
-          <p className="text-sm text-muted-foreground">
-            Necesitas autenticarte para acceder al chat
-          </p>
-          <a
-            href="/login"
-            className="inline-block px-6 py-2.5 text-sm font-medium text-foreground bg-foreground/5 hover:bg-foreground/10 rounded-lg transition-colors"
-          >
-            Ir a login
-          </a>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
-      {/* Sidebar */}
-      <ChatSidebar
-        rooms={rooms}
-        selectedRoomId={selectedRoom?.id}
-        isConnected={isConnected}
-        isConnecting={isConnecting}
-        error={error}
-        onCreateRoom={handleCreateRoom}
-        onSelectRoom={handleSelectRoom}
-        onConnect={connect}
-      />
-
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+    <AppLayout className="bg-background text-foreground">
+      <div className="flex flex-col h-full bg-black">
+        {/* Header unificado */}
+        <PageHeader
+          title="Chat"
+          subtitle="Comunícate en tiempo real con tu equipo"
+        />
+        
+        <div className="flex flex-1 overflow-hidden min-w-0">
+          {/* Main Chat Area */}
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {!isConnected ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center space-y-3">
@@ -163,17 +189,62 @@ export default function ChatPage() {
               </div>
             </div>
           </div>
-        ) : (
-          <ChatRoom
-            room={selectedRoom}
-            messages={roomMessages}
-            isConnected={isConnected}
-            isSending={isSending}
-            onSendMessage={handleSendMessage}
-            onClose={handleCloseRoom}
-          />
-        )}
+                    ) : !isParticipant && selectedRoom.visibility === "public" ? (
+                      <div className="flex items-center justify-center h-full">
+                        <div className="text-center space-y-4 max-w-sm px-6">
+                          <div className="w-16 h-16 mx-auto flex items-center justify-center rounded-full bg-foreground/5">
+                            <MessageSquare className="w-8 h-8 text-foreground/40" />
+                          </div>
+                          <div className="space-y-2">
+                            <h2 className="text-lg font-light text-foreground">Unirse a {selectedRoom.name}</h2>
+                            <p className="text-sm text-muted-foreground">
+                              Esta es una sala pública. Únete para participar en la conversación.
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleJoinPublicRoom(selectedRoom)}
+                            className="px-6 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition-colors font-medium"
+                            disabled={!isConnected || isConnecting}
+                          >
+                            {isConnecting ? "Conectando..." : "Unirse a la sala"}
+                          </button>
+                          <button
+                            onClick={handleCloseRoom}
+                            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <ChatRoom
+                        room={selectedRoom}
+                        messages={roomMessages}
+                        isConnected={isConnected}
+                        isSending={isSending}
+                        onSendMessage={handleSendMessage}
+                        onClose={handleCloseRoom}
+                        currentUserId={currentUser?.uid}
+                      />
+                    )}
+          </div>
+
+                  {/* Chat Sidebar - Moved to the right */}
+                  <ChatSidebar
+                    rooms={rooms}
+                    selectedRoomId={selectedRoom?.id}
+                    isConnected={isConnected}
+                    isConnecting={isConnecting}
+                    error={error}
+                    onCreateRoom={handleCreateRoom}
+                    onSelectRoom={handleSelectRoom}
+                    onJoinPublicRoom={handleJoinPublicRoom}
+                    onConnect={connect}
+                    onJoinWithCode={handleJoinWithCode}
+                    currentUserId={currentUser?.uid}
+                  />
+        </div>
       </div>
-    </div>
+    </AppLayout>
   );
 }
