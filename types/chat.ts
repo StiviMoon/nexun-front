@@ -24,6 +24,8 @@ export interface ChatRoom {
   name: string;
   description?: string;
   type: "direct" | "group" | "channel";
+  visibility: "public" | "private";
+  code?: string; // Código de acceso para salas privadas
   participants: string[];
   createdBy: string;
   createdAt: Date;
@@ -32,6 +34,7 @@ export interface ChatRoom {
 
 export interface JoinRoomData {
   roomId: string;
+  code?: string; // Código requerido para salas privadas
 }
 
 export interface SendMessageData {
@@ -45,6 +48,7 @@ export interface CreateRoomData {
   name: string;
   description?: string;
   type: "direct" | "group" | "channel";
+  visibility: "public" | "private";
   participants?: string[];
 }
 

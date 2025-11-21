@@ -17,6 +17,7 @@ export const ChatRoomsList = ({ onSelectRoom, selectedRoomId }: ChatRoomsListPro
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [roomName, setRoomName] = useState("");
   const [roomType, setRoomType] = useState<"direct" | "group" | "channel">("group");
+  const [roomVisibility, setRoomVisibility] = useState<"public" | "private">("public");
 
   const handleCreateRoom = () => {
     if (!roomName.trim()) {
@@ -25,7 +26,8 @@ export const ChatRoomsList = ({ onSelectRoom, selectedRoomId }: ChatRoomsListPro
 
     createRoom({
       name: roomName.trim(),
-      type: roomType
+      type: roomType,
+      visibility: roomVisibility
     });
 
     setRoomName("");
@@ -60,6 +62,14 @@ export const ChatRoomsList = ({ onSelectRoom, selectedRoomId }: ChatRoomsListPro
             <option value="group">Grupo</option>
             <option value="channel">Canal</option>
             <option value="direct">Directo</option>
+          </select>
+          <select
+            value={roomVisibility}
+            onChange={(e) => setRoomVisibility(e.target.value as "public" | "private")}
+            className="w-full p-2 border rounded"
+          >
+            <option value="public">Pública</option>
+            <option value="private">Privada</option>
           </select>
           <Button onClick={handleCreateRoom} className="w-full" size="sm">
             Crear Sala

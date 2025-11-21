@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, Globe, Shield, Sparkles, Zap } from "lucide-react";
+import Footer from "@/components/ui/Footer";
 
 const HomePage = () => {
   return (
@@ -40,6 +41,7 @@ const HomePage = () => {
       </nav>
 
       <main className="mx-auto max-w-6xl px-6 py-16">
+        
         <section className="rounded-3xl border border-border bg-card/90 p-10 shadow-sm backdrop-blur">
           <div className="text-center">
             <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
@@ -139,9 +141,7 @@ const HomePage = () => {
         </section>
       </main>
 
-      <footer className="border-t border-border bg-card/80 py-6 text-center text-sm text-muted-foreground">
-        © {new Date().getFullYear()} Nexun. Todos los derechos reservados.
-      </footer>
+      <Footer />
     </div>
   );
 };

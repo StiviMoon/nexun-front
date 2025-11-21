@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useCallback, useMemo } from "react";
 import {
   ChatMessage,
   ChatRoom,
@@ -8,6 +8,7 @@ import {
   ChatError
 } from "@/types/chat";
 import { ChatService } from "@/utils/services/chatService";
+import { useChatStore } from "@/utils/chatStore";
 
 interface UseChatReturn {
   // Connection state
@@ -17,13 +18,14 @@ interface UseChatReturn {
 
   // Data
   rooms: ChatRoom[];
-  messages: Record<string, ChatMessage[]>; // roomId -> messages
+  messages: Record<string, ChatMessage[]>;
   currentRoom: ChatRoom | null;
 
   // Actions
   connect: () => Promise<void>;
   disconnect: () => void;
-  joinRoom: (roomId: string) => void;
+  joinRoom: (roomId: string, code?: string) => void;
+  joinRoomByCode: (code: string) => void;
   leaveRoom: (roomId: string) => void;
   sendMessage: (roomId: string, content: string, type?: "text" | "image" | "file") => void;
   createRoom: (data: CreateRoomData) => void;
@@ -35,12 +37,25 @@ interface UseChatReturn {
 export const useChat = (useGateway = false): UseChatReturn => {
   const chatServiceRef = useRef<ChatService | null>(null);
   const listenersRegisteredRef = useRef(false);
-  const [isConnected, setIsConnected] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [error, setError] = useState<ChatError | null>(null);
-  const [rooms, setRooms] = useState<ChatRoom[]>([]);
-  const [messages, setMessages] = useState<Record<string, ChatMessage[]>>({});
-  const [currentRoom, setCurrentRoom] = useState<ChatRoom | null>(null);
+  const rooms = useChatStore((state) => state.rooms);
+  const messages = useChatStore((state) => state.messages);
+  const currentRoomId = useChatStore((state) => state.currentRoomId);
+  const isConnected = useChatStore((state) => state.isConnected);
+  const isConnecting = useChatStore((state) => state.isConnecting);
+  const error = useChatStore((state) => state.error);
+  const setRooms = useChatStore((state) => state.setRooms);
+  const upsertRoom = useChatStore((state) => state.upsertRoom);
+  const setCurrentRoomId = useChatStore((state) => state.setCurrentRoomId);
+  const setMessagesForRoom = useChatStore((state) => state.setMessagesForRoom);
+  const addMessage = useChatStore((state) => state.addMessage);
+  const setConnected = useChatStore((state) => state.setConnected);
+  const setConnecting = useChatStore((state) => state.setConnecting);
+  const setError = useChatStore((state) => state.setError);
+  const reset = useChatStore((state) => state.reset);
+  const currentRoom = useMemo(
+    () => rooms.find((room) => room.id === currentRoomId) || null,
+    [rooms, currentRoomId]
+  );
 
   // Connect to Socket.IO server using ChatService
   const connect = useCallback(async () => {
@@ -48,21 +63,19 @@ export const useChat = (useGateway = false): UseChatReturn => {
       return;
     }
 
-    setIsConnecting(true);
+    setConnecting(true);
     setError(null);
 
     try {
-      // Initialize ChatService if not already done
       if (!chatServiceRef.current) {
         chatServiceRef.current = new ChatService(useGateway);
       }
 
       const chatService = chatServiceRef.current;
-
-      // Connect to the service before registering listeners
       const socket = await chatService.connect();
 
       if (!listenersRegisteredRef.current) {
+        // Register event listeners only once
         chatService.onRoomsList((receivedRooms: ChatRoom[]) => {
           console.log("📋 Received rooms list:", receivedRooms);
           setRooms(receivedRooms);
@@ -70,60 +83,42 @@ export const useChat = (useGateway = false): UseChatReturn => {
 
         chatService.onMessage((message: ChatMessage) => {
           console.log("💬 New message:", message);
-          setMessages((prev) => {
-            const roomMessages = prev[message.roomId] || [];
-            // Avoid duplicates
-            if (roomMessages.some((m) => m.id === message.id)) {
-              return prev;
-            }
-            return {
-              ...prev,
-              [message.roomId]: [...roomMessages, message]
-            };
-          });
+          addMessage(message);
         });
 
         chatService.onRoomJoined((data: { roomId: string; room: ChatRoom }) => {
           console.log("✅ Joined room:", data.roomId);
-          setRooms((prev) => {
-            const exists = prev.find((r) => r.id === data.roomId);
-            if (exists) {
-              return prev;
-            }
-            return [...prev, data.room];
-          });
+          // Actualizar la sala con los nuevos participantes (incluyendo al usuario actual)
+          upsertRoom(data.room);
+          // Si esta es la sala actual, actualizar también
+          const { currentRoomId } = useChatStore.getState();
+          if (currentRoomId === data.roomId) {
+            setCurrentRoomId(data.room.id);
+          }
         });
 
         chatService.onRoomCreated((room: ChatRoom) => {
           console.log("🏠 Room created:", room.id);
-          setRooms((prev) => [...prev, room]);
-          setCurrentRoom(room);
+          upsertRoom(room);
+          setCurrentRoomId(room.id);
         });
 
         chatService.onRoomLeft((data: { roomId: string }) => {
           console.log("👋 Left room:", data.roomId);
-          setCurrentRoom((prev) => (prev?.id === data.roomId ? null : prev));
+          const { currentRoomId: activeRoomId } = useChatStore.getState();
+          if (activeRoomId === data.roomId) {
+            setCurrentRoomId(null);
+          }
         });
 
         chatService.onRoomDetails((room: ChatRoom) => {
           console.log("📝 Room details:", room.id);
-          setRooms((prev) => {
-            const index = prev.findIndex((r) => r.id === room.id);
-            if (index >= 0) {
-              const updated = [...prev];
-              updated[index] = room;
-              return updated;
-            }
-            return [...prev, room];
-          });
+          upsertRoom(room);
         });
 
         chatService.onMessagesList((data: { roomId: string; messages: ChatMessage[] }) => {
           console.log(`📨 Received ${data.messages.length} messages for room ${data.roomId}`);
-          setMessages((prev) => ({
-            ...prev,
-            [data.roomId]: data.messages
-          }));
+          setMessagesForRoom(data.roomId, data.messages);
         });
 
         chatService.onUserOnline((data: { userId: string }) => {
@@ -135,23 +130,26 @@ export const useChat = (useGateway = false): UseChatReturn => {
         });
 
         chatService.onError((err: { message: string; code?: string }) => {
-          console.error("Chat error:", err);
-          setError({
-            message: err.message,
-            code: err.code || "UNKNOWN_ERROR"
-          });
+          // Only set error if it has meaningful information
+          if (err && err.message && err.message.length > 0) {
+            console.error("Chat error:", err);
+            setError({
+              message: err.message,
+              code: err.code || "UNKNOWN_ERROR"
+            });
+          }
         });
 
         listenersRegisteredRef.current = true;
       }
 
-      // Listen to socket connection events
+      // Register socket connection events (only once, not inside listenersRegistered check)
+      // These need to be registered each time socket is created
       socket.on("connect", () => {
         console.log("✅ Connected to chat server");
-        setIsConnected(true);
-        setIsConnecting(false);
+        setConnected(true);
+        setConnecting(false);
         setError(null);
-        // Request initial rooms list
         try {
           chatService.listRooms();
         } catch (listError) {
@@ -159,38 +157,51 @@ export const useChat = (useGateway = false): UseChatReturn => {
         }
       });
 
-      socket.on("disconnect", () => {
-        console.log("❌ Disconnected from chat server");
-        setIsConnected(false);
-        setIsConnecting(false);
+      socket.on("disconnect", (reason) => {
+        console.log("❌ Disconnected from chat server:", reason);
+        setConnected(false);
+        setConnecting(false);
+        // Don't set error on disconnect, it's normal
       });
 
       socket.on("connect_error", (err) => {
-        console.error("Connection error:", err);
-        setIsConnecting(false);
-        
-        // Handle authentication errors specifically
-        if (err.message?.includes("auth") || err.message?.includes("unauthorized")) {
-          setError({
-            message: "Authentication failed. Please log in again.",
-            code: "AUTH_ERROR"
-          });
-        } else {
-          setError({
-            message: err.message || "Failed to connect to chat server",
-            code: "CONNECTION_ERROR"
-          });
+        console.error("Connection error:", err.message || err);
+        setConnecting(false);
+
+        // Only set error if it's not a timeout (timeouts are handled by reconnection)
+        if (!err.message?.includes("timeout") && !err.message?.includes("xhr poll error")) {
+          if (err.message?.includes("auth") || err.message?.includes("unauthorized")) {
+            setError({
+              message: "Authentication failed. Please log in again.",
+              code: "AUTH_ERROR"
+            });
+          } else if (err.message) {
+            setError({
+              message: err.message,
+              code: "CONNECTION_ERROR"
+            });
+          }
         }
       });
     } catch (err) {
       console.error("Failed to connect:", err);
-      setIsConnecting(false);
+      setConnecting(false);
       setError({
         message: err instanceof Error ? err.message : "Failed to connect",
         code: "CONNECTION_FAILED"
       });
     }
-  }, [useGateway]);
+  }, [
+    useGateway,
+    addMessage,
+    setRooms,
+    upsertRoom,
+    setCurrentRoomId,
+    setMessagesForRoom,
+    setConnected,
+    setConnecting,
+    setError
+  ]);
 
   // Disconnect from server
   const disconnect = useCallback(() => {
@@ -199,23 +210,20 @@ export const useChat = (useGateway = false): UseChatReturn => {
       chatServiceRef.current = null;
     }
     listenersRegisteredRef.current = false;
-    setIsConnected(false);
-    setIsConnecting(false);
-    setRooms([]);
-    setMessages({});
-    setCurrentRoom(null);
-  }, []);
+    reset();
+  }, [reset]);
 
-  // Join a room
+  // Join a room (with optional code for private rooms)
   const joinRoom = useCallback(
-    (roomId: string) => {
+    (roomId: string, code?: string) => {
       if (!chatServiceRef.current?.isConnected()) {
         setError({ message: "Not connected to chat server", code: "NOT_CONNECTED" });
         return;
       }
 
       try {
-        chatServiceRef.current.joinRoom(roomId);
+        chatServiceRef.current.joinRoom(roomId, code);
+        setCurrentRoomId(roomId); // Set current room in store
       } catch (err) {
         setError({
           message: err instanceof Error ? err.message : "Failed to join room",
@@ -223,7 +231,35 @@ export const useChat = (useGateway = false): UseChatReturn => {
         });
       }
     },
-    []
+    [setError, setCurrentRoomId]
+  );
+
+  // Join a room by code only (searches for room with that code)
+  const joinRoomByCode = useCallback(
+    (code: string) => {
+      if (!chatServiceRef.current?.isConnected()) {
+        setError({ message: "Not connected to chat server", code: "NOT_CONNECTED" });
+        return;
+      }
+
+      if (!code || code.trim().length < 6) {
+        setError({
+          message: "Código inválido (debe tener al menos 6 caracteres)",
+          code: "INVALID_CODE_FORMAT"
+        });
+        return;
+      }
+
+      try {
+        chatServiceRef.current.joinRoomByCode(code.trim().toUpperCase());
+      } catch (err) {
+        setError({
+          message: err instanceof Error ? err.message : "Failed to join room with code",
+          code: "JOIN_BY_CODE_ERROR"
+        });
+      }
+    },
+    [setError]
   );
 
   // Leave a room
@@ -264,7 +300,7 @@ export const useChat = (useGateway = false): UseChatReturn => {
         });
       }
     },
-    []
+    [setError]
   );
 
   // Create a room
@@ -275,8 +311,23 @@ export const useChat = (useGateway = false): UseChatReturn => {
         return;
       }
 
+      // Validate required fields
+      if (!data.name || !data.type || !data.visibility) {
+        setError({
+          message: "Nombre, tipo y visibilidad son requeridos",
+          code: "VALIDATION_ERROR"
+        });
+        return;
+      }
+
       try {
-        chatServiceRef.current.createRoom(data.name, data.type, data.participants);
+        chatServiceRef.current.createRoom(
+          data.name,
+          data.type,
+          data.visibility,
+          data.description,
+          data.participants || []
+        );
       } catch (err) {
         setError({
           message: err instanceof Error ? err.message : "Failed to create room",
@@ -284,7 +335,7 @@ export const useChat = (useGateway = false): UseChatReturn => {
         });
       }
     },
-    []
+    [setError]
   );
 
   // Get room details
@@ -304,7 +355,7 @@ export const useChat = (useGateway = false): UseChatReturn => {
         });
       }
     },
-    []
+    [setError]
   );
 
   // Get messages for a room
@@ -324,7 +375,7 @@ export const useChat = (useGateway = false): UseChatReturn => {
         });
       }
     },
-    []
+    [setError]
   );
 
   // Cleanup on unmount
@@ -333,6 +384,13 @@ export const useChat = (useGateway = false): UseChatReturn => {
       disconnect();
     };
   }, [disconnect]);
+
+  const updateCurrentRoom = useCallback(
+    (room: ChatRoom | null) => {
+      setCurrentRoomId(room?.id ?? null);
+    },
+    [setCurrentRoomId]
+  );
 
   return {
     isConnected,
@@ -344,12 +402,13 @@ export const useChat = (useGateway = false): UseChatReturn => {
     connect,
     disconnect,
     joinRoom,
+    joinRoomByCode,
     leaveRoom,
     sendMessage,
     createRoom,
     getRoom,
     getMessages,
-    setCurrentRoom
+    setCurrentRoom: updateCurrentRoom
   };
 };
 
