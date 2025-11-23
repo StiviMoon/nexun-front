@@ -7,9 +7,10 @@ import { Lock } from 'lucide-react';
 interface SecurityProps {
   onChangePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   isLoading: boolean;
+  isGoogleUser?: boolean;
 }
 
-const Security: React.FC<SecurityProps> = ({ onChangePassword, isLoading }) => {
+const Security: React.FC<SecurityProps> = ({ onChangePassword, isLoading, isGoogleUser = false }) => {
   const [formData, setFormData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -65,6 +66,13 @@ const Security: React.FC<SecurityProps> = ({ onChangePassword, isLoading }) => {
 
       {/* Form Card */}
       <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8">
+        {isGoogleUser && (
+          <div className="mb-6 p-4 bg-yellow-900/20 border border-yellow-700/50 rounded-lg">
+            <p className="text-yellow-400 text-sm">
+              ⚠️ Los usuarios de Google no pueden cambiar su contraseña desde aquí.
+            </p>
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Contraseña actual */}
           <div>
@@ -77,7 +85,8 @@ const Security: React.FC<SecurityProps> = ({ onChangePassword, isLoading }) => {
               onChange={(e) => setFormData(prev => ({ ...prev, currentPassword: e.target.value }))}
               placeholder="********"
               required
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
+              disabled={isGoogleUser}
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
 
@@ -92,7 +101,8 @@ const Security: React.FC<SecurityProps> = ({ onChangePassword, isLoading }) => {
               onChange={(e) => setFormData(prev => ({ ...prev, newPassword: e.target.value }))}
               placeholder="********"
               required
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
+              disabled={isGoogleUser}
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <p className="text-xs text-gray-400 mt-2">
               Esta contraseña debe contener mínimo 6 caracteres, un símbolo especial, un número y una mayúscula
@@ -110,7 +120,8 @@ const Security: React.FC<SecurityProps> = ({ onChangePassword, isLoading }) => {
               onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
               placeholder="ejemplo@gmail.com"
               required
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
+              disabled={isGoogleUser}
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
 
@@ -137,7 +148,7 @@ const Security: React.FC<SecurityProps> = ({ onChangePassword, isLoading }) => {
 
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || isGoogleUser}
               className="flex-1 px-6 py-3 rounded-lg font-semibold text-white bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? 'Cambiando contraseña...' : 'Cambiar contraseña'}

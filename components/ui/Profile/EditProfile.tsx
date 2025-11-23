@@ -4,12 +4,13 @@
 import React, { useState } from 'react';
 import { EditProfileProps } from './types';
 
-const EditProfile: React.FC<EditProfileProps> = ({ user, onUpdate, isLoading }) => {
+const EditProfile: React.FC<EditProfileProps> = ({ user, onUpdate, isLoading, isGoogleUser = false }) => {
   const [formData, setFormData] = useState({
+    firstName: user.firstName || '',
+    lastName: user.lastName || '',
     displayName: user.displayName || '',
-    lastName: '', // Campo nuevo para apellidos
     email: user.email || '',
-    age: '', // Campo nuevo para edad
+    age: user.age?.toString() || '',
     photoURL: user.photoURL || ''
   });
 
@@ -17,14 +18,33 @@ const EditProfile: React.FC<EditProfileProps> = ({ user, onUpdate, isLoading }) 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const ageNumber = formData.age ? parseInt(formData.age, 10) : undefined;
+    if (ageNumber !== undefined && (isNaN(ageNumber) || ageNumber < 0 || ageNumber > 150)) {
+      return; // Validación de edad
+    }
     await onUpdate({
-      displayName: formData.displayName,
+      firstName: formData.firstName || undefined,
+      lastName: formData.lastName || undefined,
+      age: ageNumber,
+      displayName: formData.displayName || undefined,
       email: formData.email,
-      photoURL: formData.photoURL
+      photoURL: formData.photoURL || undefined
     });
   };
 
   const handleChange = (field: string, value: string) => {
+    // Prevenir números negativos en el campo de edad
+    if (field === 'age') {
+      const numValue = parseInt(value, 10);
+      if (value === "" || (!isNaN(numValue) && numValue >= 0)) {
+        setFormData(prev => ({
+          ...prev,
+          [field]: value
+        }));
+      }
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -39,10 +59,11 @@ const EditProfile: React.FC<EditProfileProps> = ({ user, onUpdate, isLoading }) 
   const handleCancel = () => {
     // Resetear formulario a valores originales
     setFormData({
+      firstName: user.firstName || '',
+      lastName: user.lastName || '',
       displayName: user.displayName || '',
-      lastName: '',
       email: user.email || '',
-      age: '',
+      age: user.age?.toString() || '',
       photoURL: user.photoURL || ''
     });
     setPreviewImage(user.photoURL || '');
@@ -97,6 +118,13 @@ const EditProfile: React.FC<EditProfileProps> = ({ user, onUpdate, isLoading }) 
 
           {/* Form Fields - Lado Derecho */}
           <div className="flex-1 space-y-6">
+            {isGoogleUser && (
+              <div className="mb-4 p-4 bg-yellow-900/20 border border-yellow-700/50 rounded-lg">
+                <p className="text-yellow-400 text-sm">
+                  ⚠️ Los usuarios de Google no pueden editar su información de perfil.
+                </p>
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Nombre */}
               <div>
@@ -105,10 +133,11 @@ const EditProfile: React.FC<EditProfileProps> = ({ user, onUpdate, isLoading }) 
                 </label>
                 <input
                   type="text"
-                  value={formData.displayName}
-                  onChange={(e) => handleChange('displayName', e.target.value)}
-                  placeholder="Jhon"
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
+                  value={formData.firstName}
+                  onChange={(e) => handleChange('firstName', e.target.value)}
+                  placeholder="John"
+                  disabled={isGoogleUser}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
 
@@ -122,7 +151,8 @@ const EditProfile: React.FC<EditProfileProps> = ({ user, onUpdate, isLoading }) 
                   value={formData.lastName}
                   onChange={(e) => handleChange('lastName', e.target.value)}
                   placeholder="Doe"
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
+                  disabled={isGoogleUser}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
 
@@ -147,9 +177,24 @@ const EditProfile: React.FC<EditProfileProps> = ({ user, onUpdate, isLoading }) 
                 <input
                   type="number"
                   value={formData.age}
-                  onChange={(e) => handleChange('age', e.target.value)}
-                  placeholder="20"
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    // Prevenir números negativos
+                    if (value === "" || (parseInt(value, 10) >= 0 && !isNaN(parseInt(value, 10)))) {
+                      handleChange('age', value);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    // Prevenir que se escriba el signo negativo
+                    if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '.') {
+                      e.preventDefault();
+                    }
+                  }}
+                  placeholder="25"
+                  min="0"
+                  max="150"
+                  disabled={isGoogleUser}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
             </div>

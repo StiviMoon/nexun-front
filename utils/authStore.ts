@@ -147,7 +147,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  registerWithEmailPassword: async (name, email, password) => {
+  registerWithEmailPassword: async (firstName, lastName, email, password, age) => {
     const { setAuthError, clearAuthError } = get();
 
     clearAuthError("signUp");
@@ -157,7 +157,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     try {
       // Register with backend - backend creates user and returns custom token
-      const response = await apiClient.register(email, password, name);
+      const response = await apiClient.register(email, password, firstName, lastName, age);
       
       if (!response.success || !response.token || !response.user) {
         throw new Error(response.error || "Failed to register user");

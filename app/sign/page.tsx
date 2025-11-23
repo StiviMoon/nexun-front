@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Mail, User } from "lucide-react";
+import React from "react";
 import AuthCard from "@/app/components/auth/AuthCard";
 import AuthShell from "@/app/components/auth/AuthShell";
 import FormField from "@/app/components/auth/FormField";
@@ -34,20 +35,44 @@ const RegisterPage = () => {
   const { formData, handleChange, handleSubmit, isSubmitDisabled } = useAuthForm({
     schema: RegisterFormSchema,
     initialValues: {
-      name: "",
+      firstName: "",
+      lastName: "",
       email: "",
       password: "",
-      confirmPassword: ""
+      confirmPassword: "",
+      age: ""
     },
     onSubmit: async (values) => {
-      const { name, email, password } = values;
-      await registerWithEmailPassword(name, email, password);
+      const { firstName, lastName, email, password, age } = values;
+      const ageNumber = typeof age === "string" && age !== "" ? parseInt(age, 10) : (typeof age === "number" ? age : 0);
+      if (isNaN(ageNumber) || ageNumber < 15 || ageNumber > 150) {
+        throw new Error("Debes ser mayor de 14 años para crear una cuenta");
+      }
+      await registerWithEmailPassword(firstName, lastName, email, password, ageNumber);
       router.push("/dashboard");
     },
     errorKey: "signUp",
     isLoading: isEmailSignUpLoading || isRegisterPending,
     otherLoading: isGoogleLoading || isGoogleAuthPending
   });
+
+  const handleAgeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Prevenir números negativos
+    if (value === "" || (parseInt(value, 10) >= 0 && !isNaN(parseInt(value, 10)))) {
+      handleChange(e);
+    } else if (value.startsWith("-")) {
+      // Si intenta escribir un negativo, simplemente no actualizar
+      return;
+    }
+  };
+
+  const handleAgeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Prevenir que se escriba el signo negativo, 'e', 'E', '+', '.'
+    if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '.') {
+      e.preventDefault();
+    }
+  };
 
   const { handleGoogleSignIn } = useSocialAuth({
     isLoading: isGoogleLoading || isGoogleAuthPending,
@@ -79,14 +104,27 @@ const RegisterPage = () => {
         <form className="space-y-6" onSubmit={handleSubmit} noValidate>
           <div className="grid gap-4 md:grid-cols-2">
             <FormField
-              id="name"
-              label="Nombre completo"
+              id="firstName"
+              label="Nombre"
               type="text"
-              name="name"
-              value={formData.name}
+              name="firstName"
+              value={formData.firstName}
               onChange={handleChange}
-              placeholder="John Doe"
-              autoComplete="name"
+              placeholder="John"
+              autoComplete="given-name"
+              required
+              icon={<User className="h-4 w-4" />}
+            />
+
+            <FormField
+              id="lastName"
+              label="Apellido"
+              type="text"
+              name="lastName"
+              value={formData.lastName}
+              onChange={handleChange}
+              placeholder="Doe"
+              autoComplete="family-name"
               required
               icon={<User className="h-4 w-4" />}
             />
@@ -102,6 +140,20 @@ const RegisterPage = () => {
               autoComplete="email"
               required
               icon={<Mail className="h-4 w-4" />}
+            />
+
+            <FormField
+              id="age"
+              label="Edad (mínimo 15 años)"
+              type="number"
+              name="age"
+              value={formData.age}
+              onChange={handleAgeChange}
+              onKeyDown={handleAgeKeyDown}
+              placeholder="25"
+              autoComplete="off"
+              required
+              min="15"
             />
 
             <div className="space-y-2">

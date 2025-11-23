@@ -18,6 +18,8 @@ type FormFieldProps = {
   icon?: ReactNode;
   className?: string;
   ariaLabel?: string;
+  min?: string | number;
+  onKeyDown?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
 };
 
 const FormField = ({
@@ -32,7 +34,9 @@ const FormField = ({
   required = false,
   icon,
   className,
-  ariaLabel
+  ariaLabel,
+  min,
+  onKeyDown
 }: FormFieldProps) => {
   return (
     <div className={cn("space-y-2", className)}>
@@ -51,10 +55,12 @@ const FormField = ({
           name={name}
           value={value}
           onChange={onChange}
+          onKeyDown={onKeyDown}
           placeholder={placeholder}
           autoComplete={autoComplete}
           required={required}
           aria-label={ariaLabel || label}
+          min={min}
           className={cn(
             "h-12 rounded-xl border-input bg-background text-sm transition-colors",
             icon ? "pl-11" : "pl-4",

@@ -1,4 +1,4 @@
-import { AuthApiResponse } from "@/types/api";
+import { AuthApiResponse, UpdateProfileRequest, UpdatePasswordRequest } from "@/types/api";
 import { getAuth } from "firebase/auth";
 import { initializeApp, getApps } from "firebase/app";
 import { firebaseConfig } from "@/config/firebase";
@@ -89,10 +89,16 @@ class ApiClient {
   }
 
   // Auth endpoints - matching guide structure
-  async register(email: string, password: string, name?: string): Promise<AuthApiResponse> {
+  async register(
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string,
+    age: number
+  ): Promise<AuthApiResponse> {
     return this.request<AuthApiResponse>("/api/auth/register", {
       method: "POST",
-      body: JSON.stringify({ email, password, name }),
+      body: JSON.stringify({ email, password, firstName, lastName, age }),
     });
   }
 
@@ -127,13 +133,35 @@ class ApiClient {
 
     try {
       console.log("Google Auth - Sending request to:", url);
-      const response = await fetch(url, config);
+      console.log("Google Auth - API Base URL:", this.baseUrl);
+      
+      let response: Response;
+      try {
+        response = await fetch(url, config);
+      } catch (fetchError) {
+        // Handle network errors (CORS, connection refused, etc.)
+        console.error("Google Auth - Fetch error:", fetchError);
+        
+        if (fetchError instanceof TypeError) {
+          // This usually means network error or CORS issue
+          if (fetchError.message.includes("Failed to fetch") || fetchError.message.includes("NetworkError")) {
+            throw new Error(
+              `No se pudo conectar con el servidor. Verifica que:\n` +
+              `1. El backend esté corriendo en ${this.baseUrl}\n` +
+              `2. No haya problemas de CORS\n` +
+              `3. La URL sea correcta`
+            );
+          }
+        }
+        throw fetchError;
+      }
+      
       console.log("Google Auth - Response status:", response.status, response.statusText);
       
       // Check if response is ok before trying to parse JSON
       if (!response.ok) {
         // Try to get error message from response
-        let errorMessage = `Request failed with status ${response.status}`;
+        let errorMessage = `Error del servidor (${response.status}): ${response.statusText}`;
         try {
           const errorData = await response.json();
           errorMessage = errorData.error || errorData.message || errorMessage;
@@ -165,8 +193,10 @@ class ApiClient {
       
       if (error instanceof Error) {
         // Re-throw with more context if it's a network error
-        if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
-          throw new Error("Network error: Could not connect to the server. Please check if the backend is running.");
+        if (error.message.includes("Failed to fetch") || 
+            error.message.includes("NetworkError") ||
+            error.message.includes("No se pudo conectar")) {
+          throw error; // Already has a good message
         }
         throw error;
       }
@@ -203,6 +233,21 @@ class ApiClient {
   // Helper method to get ID token (for Socket.IO connections)
   async getAuthToken(forceRefresh = false): Promise<string | null> {
     return getIdToken(forceRefresh);
+  }
+
+  // Profile update endpoints
+  async updateProfile(updateData: UpdateProfileRequest): Promise<AuthApiResponse> {
+    return this.request<AuthApiResponse>("/api/auth/profile", {
+      method: "PUT",
+      body: JSON.stringify(updateData),
+    });
+  }
+
+  async updatePassword(passwordData: UpdatePasswordRequest): Promise<AuthApiResponse> {
+    return this.request<AuthApiResponse>("/api/auth/password", {
+      method: "PUT",
+      body: JSON.stringify(passwordData),
+    });
   }
 }
 
