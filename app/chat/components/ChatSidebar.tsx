@@ -215,9 +215,11 @@ export const ChatSidebar = ({
   const rootClasses = cn(
     'bg-background/50 backdrop-blur-sm flex flex-col border-l border-border/50',
     // sizing
-    'w-72 min-w-[280px] max-w-[320px] flex-shrink-0',
+    'w-full h-full flex-shrink-0',
+    // mobile: fixed width, desktop: full width of container
+    'lg:w-full',
     // positioning and transform for mobile
-    'fixed inset-y-0 left-0 z-50 transform transition-transform duration-200 ease-in-out lg:relative lg:translate-x-0 lg:static',
+    'fixed inset-y-0 left-0 z-50 transform transition-transform duration-200 ease-in-out lg:relative lg:translate-x-0 lg:static lg:inset-auto',
     // mobile open/closed state
     mobileOpen ? 'translate-x-0' : '-translate-x-full',
     className

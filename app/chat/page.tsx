@@ -230,7 +230,7 @@ export default function ChatPage() {
           </div>
 
                   {/* Chat Sidebar - Responsive: Hidden on mobile, shown on desktop */}
-                  <div className="hidden lg:block lg:w-80 xl:w-96 flex-shrink-0 order-1 lg:order-2">
+                  <div className="hidden lg:flex lg:w-80 xl:w-96 flex-shrink-0 order-1 lg:order-2 h-full">
                     <ChatSidebar
                       rooms={rooms}
                       selectedRoomId={selectedRoom?.id}
