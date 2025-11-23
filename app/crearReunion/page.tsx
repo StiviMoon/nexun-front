@@ -19,10 +19,7 @@ export default function CrearReunionPage() {
     <AppLayout>
       <div className="flex flex-col h-full bg-black">
         {/* Header unificado */}
-        <PageHeader
-          title="Crear Reunión"
-          subtitle="Configura una nueva reunión para tu equipo"
-        />
+        
         
         <div className="flex-1 overflow-auto">
           <CreateMeeting 

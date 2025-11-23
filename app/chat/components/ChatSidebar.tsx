@@ -54,6 +54,16 @@ export const ChatSidebar = ({
   const [codeCopied, setCodeCopied] = useState(false);
   const [pendingPrivateCreation, setPendingPrivateCreation] = useState(false);
   const [lastCreatedRoomId, setLastCreatedRoomId] = useState<string | null>(null);
+  // Mobile visibility state (persisted) - allows user to keep sidebar hidden on mobile
+  const [mobileOpen, setMobileOpen] = useState<boolean>(() => {
+    try {
+      if (typeof window === 'undefined') return true;
+      const saved = localStorage.getItem('chat-sidebar-open');
+      return saved === null ? true : saved === 'true';
+    } catch {
+      return true;
+    }
+  });
 
   // Buscar código de sala privada recién creada
   // Solo busca cuando hay una sala nueva creada por el usuario actual
@@ -169,6 +179,15 @@ export const ChatSidebar = ({
     }
   }, [showCreateForm]);
 
+  // Persist mobileOpen preference
+  useEffect(() => {
+    try {
+      localStorage.setItem('chat-sidebar-open', String(mobileOpen));
+    } catch (e) {
+      // ignore
+    }
+  }, [mobileOpen]);
+
   const handleToggleJoinForm = useCallback(() => {
     setShowJoinForm((prev) => !prev);
     setShowCreateForm(false);
@@ -192,13 +211,52 @@ export const ChatSidebar = ({
     }
   }, [showCreateForm]);
 
+  // root classes: on mobile the sidebar is a slide-over; on lg+ it is a static aside
+  const rootClasses = cn(
+    'bg-background/50 backdrop-blur-sm flex flex-col border-l border-border/50',
+    // sizing
+    'w-72 min-w-[280px] max-w-[320px] flex-shrink-0',
+    // positioning and transform for mobile
+    'fixed inset-y-0 left-0 z-50 transform transition-transform duration-200 ease-in-out lg:relative lg:translate-x-0 lg:static',
+    // mobile open/closed state
+    mobileOpen ? 'translate-x-0' : '-translate-x-full',
+    className
+  );
+
   return (
-    <div className={cn("w-72 min-w-[280px] max-w-[320px] bg-background/50 backdrop-blur-sm flex flex-col border-l border-border/50 flex-shrink-0", className)}>
+    <>
+      {/* Mobile opener button when sidebar is closed */}
+      {!mobileOpen && (
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="lg:hidden fixed bottom-15 right-4 z-50 p-3 rounded-full bg-zinc-900/80 text-white shadow-lg flex items-center justify-center"
+          aria-label="Abrir chat"
+        >
+          <MessageSquare className="w-5 h-5" />
+        </button>
+      )}
+
+      {/* Backdrop for mobile when open */}
+      {mobileOpen && (
+        <div className="lg:hidden fixed inset-0 z-40 bg-black/40" onClick={() => setMobileOpen(false)} />
+      )}
+
+      <div className={rootClasses}>
       {/* Header */}
       <div className="p-4 space-y-3">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-light tracking-tight">Chat</h1>
-          <UserStatus isConnected={isConnected} isConnecting={isConnecting} />
+          <div className="flex items-center gap-2">
+            <UserStatus isConnected={isConnected} isConnecting={isConnecting} />
+            {/* Close button on mobile to hide the sidebar */}
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="lg:hidden p-1 rounded hover:bg-zinc-800 transition-colors"
+              aria-label="Cerrar chat"
+            >
+              <X className="w-4 h-4 text-muted-foreground/80" />
+            </button>
+          </div>
         </div>
 
         {/* Search */}
@@ -449,5 +507,6 @@ export const ChatSidebar = ({
         </div>
       </div>
     </div>
+    </>
   );
 };

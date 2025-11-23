@@ -104,8 +104,8 @@ const Footer: React.FC<FooterProps> = ({ className = '' }) => {
           <div className="block lg:hidden my-6 h-px w-full bg-gradient-to-r from-cyan-400/50 via-purple-500/50 to-transparent"></div>
 
           {/* Legal Section */}
-          <div className="relative flex flex-col items-start pl-5 pt-15">
-            <h3 className="text-lg font-semibold mb-6 pl-13">Legal</h3>
+          <div className="relative flex flex-col  items-start pl-5 pt-15">
+            <h3 className="text-lg font-semibold mb-6 pl-13 text-center">Legal</h3>
             {/* Vertical separator line */}
             <div className="hidden lg:block absolute right-0 top-0 bottom-0 w-px bg-gradient-to-b from-cyan-400/50 via-purple-500/50 to-transparent"></div>
             <ul className="space-y-3 w-full">
@@ -127,12 +127,12 @@ const Footer: React.FC<FooterProps> = ({ className = '' }) => {
 
           {/* Social Section */}
           <div>
-            <h3 className="text-lg font-semibold mb-6 text-center pt-[55px]">Síguenos</h3>
-            <ul className="space-y-3">
+            <h3 className="text-lg font-semibold mb-6 text-left pt-[55px]">Síguenos</h3>
+            <ul className="space-y-3 justify-items-center ">
               {socialLinks.map((social) => {
                 const Icon = social.icon;
                 return (
-                  <li key={social.href}>
+                  <li key={social.href} className="flex justify-center">
                     <a 
                       href={social.href}
                       target="_blank"

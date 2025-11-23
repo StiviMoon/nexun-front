@@ -17,11 +17,11 @@ const DashboardPage = () => {
 
   return (
     <AppLayout>
-      <div className="flex flex-col h-full bg-black">
+      <div className="flex flex-col h-full bg-zinc-950">
         {/* Header unificado */}
         <PageHeader
           title={`Bienvenido, ${userName.split(" ")[0]}`}
-          subtitle="Este es tu punto de partida para gestionar tus reuniones y actividades"
+          
         />
 
         {/* Contenido principal - Solo acciones rápidas */}
