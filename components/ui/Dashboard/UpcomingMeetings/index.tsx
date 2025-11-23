@@ -20,10 +20,10 @@ const UpcomingMeetings: React.FC<UpcomingMeetingsProps> = ({ meetings }) => {
   }
 
   return (
-    <div className="mb-12">
-      <h2 className="text-xl font-semibold text-white mb-6">Próximas Reuniones</h2>
+    <div className="mb-8 sm:mb-10 lg:mb-12">
+      <h2 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6">Próximas Reuniones</h2>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 lg:gap-6">
         {upcomingMeetings.map((meeting) => (
           <MeetingCard
             key={meeting.id}

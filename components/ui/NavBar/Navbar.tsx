@@ -77,8 +77,8 @@ const AsideNavbar: React.FC<AsideNavbarProps> = ({ className = '' }) => {
             <Link
               key={item.id}
               href={item.href}
-              onMouseEnter={() => setHoveredItem(item.id)}
-              onMouseLeave={() => setHoveredItem(null)}
+              onMouseEnter={() => !isMobile && setHoveredItem(item.id)}
+              onMouseLeave={() => !isMobile && setHoveredItem(null)}
               onClick={() => isMobile && setIsMobileMenuOpen(false)}
               title={!isMobile && isCollapsed ? item.label : undefined}
               className={`
@@ -89,7 +89,9 @@ const AsideNavbar: React.FC<AsideNavbarProps> = ({ className = '' }) => {
                   ? 'bg-cyan-500/10 text-cyan-400' 
                   : 'text-gray-400 hover:text-white hover:bg-zinc-800/50'
                 }
+                focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-zinc-950
               `}
+              aria-current={active ? 'page' : undefined}
             >
               {active && (
                 <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-gradient-to-b from-cyan-400 to-purple-600 rounded-r-full" />
@@ -185,13 +187,34 @@ const AsideNavbar: React.FC<AsideNavbarProps> = ({ className = '' }) => {
   return (
     <>
       {/* Mobile Header */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-zinc-950 px-4 py-3 flex items-center justify-end">
+      <header className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-zinc-950 border-b border-zinc-800 px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between safe-area-inset-top">
+        <Link 
+          href="/dashboard" 
+          className="flex items-center gap-2"
+          onClick={() => setIsMobileMenuOpen(false)}
+        >
+          <Image 
+            src="/LOGO_SOLO.svg" 
+            alt="Nexun Logo" 
+            width={32} 
+            height={32} 
+            className="w-8 h-8" 
+            priority 
+          />
+          <span className="text-lg font-bold text-white">NEXUN</span>
+        </Link>
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="p-2 text-purple-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
+          className="p-2 text-purple-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-zinc-950"
           aria-label={isMobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
+          aria-expanded={isMobileMenuOpen}
+          aria-controls="mobile-menu"
         >
-          {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          {isMobileMenuOpen ? (
+            <X className="w-6 h-6" aria-hidden="true" />
+          ) : (
+            <Menu className="w-6 h-6" aria-hidden="true" />
+          )}
         </button>
       </header>
 
@@ -205,19 +228,34 @@ const AsideNavbar: React.FC<AsideNavbarProps> = ({ className = '' }) => {
 
       {/* Mobile Slide-out Menu */}
       <aside
+        id="mobile-menu"
         className={`
-          lg:hidden fixed top-0 left-0 h-full w-72 bg-zinc-950 border-r border-zinc-800 z-50
+          lg:hidden fixed top-0 left-0 h-full w-72 max-w-[85vw] bg-zinc-950 border-r border-zinc-800 z-50
           transform transition-transform duration-300 ease-in-out flex flex-col
           ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+          safe-area-inset-left
         `}
+        aria-label="Menú de navegación"
+        aria-hidden={!isMobileMenuOpen}
       >
         {/* Mobile Menu Header */}
-        <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-3" onClick={() => setIsMobileMenuOpen(false)}>
+        <div className="p-4 border-b border-zinc-800 flex items-center justify-between safe-area-inset-top">
+          <Link 
+            href="/dashboard" 
+            className="flex items-center gap-3" 
+            onClick={() => setIsMobileMenuOpen(false)}
+            aria-label="Ir al dashboard"
+          >
             <Image src="/LOGO_SOLO.svg" alt="Nexun Logo" width={40} height={40} className="w-10 h-10" priority />
             <span className="text-xl font-bold text-white">NEXUN</span>
           </Link>
-          
+          <button
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
+            aria-label="Cerrar menú"
+          >
+            <X className="w-5 h-5" aria-hidden="true" />
+          </button>
         </div>
         <NavContent isMobile={true} />
       </aside>

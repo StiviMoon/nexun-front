@@ -79,18 +79,18 @@ export default function SalaPage({ params }: PageProps) {
         currentTime={currentTime}
       />
 
-      {/* Main Content */}
-      <div className="flex-1 flex overflow-auto min-h-0">
-        {/* Video Area */}
-        <div className="flex-1 flex flex-col min-h-0">
+      {/* Main Content - Responsive Layout */}
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
+        {/* Video Area - Full width on mobile, flex-1 on desktop */}
+        <div className="flex-1 flex flex-col min-h-0 order-2 lg:order-1">
           <VideoGrid
             participants={participants}
             activeSpeakerId={activeSpeakerId || (participants[0] && participants[0].id) || '1'}
           />
         </div>
 
-        {/* Right column: Sidebar + ControlBar */}
-        <div className="w-64 flex flex-col min-h-0">
+        {/* Right column: Sidebar + ControlBar - Hidden on mobile, shown on desktop */}
+        <div className="hidden lg:flex w-64 flex-col min-h-0 order-1 lg:order-2">
           <div className="flex-1 min-h-0 overflow-auto">
             <Sidebar
               activeTab={activeTab}
@@ -111,6 +111,28 @@ export default function SalaPage({ params }: PageProps) {
             />
           </div>
         </div>
+      </div>
+
+      {/* Mobile Bottom Bar - ControlBar always visible on mobile */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-zinc-950 border-t border-zinc-800">
+        <ControlBar
+          isMuted={isMuted}
+          isCameraOff={isCameraOff}
+          onToggleMute={toggleMute}
+          onToggleCamera={toggleCamera}
+          onLeave={leaveRoom}
+        />
+      </div>
+
+      {/* Mobile Sidebar - Slide out from right */}
+      <div className="lg:hidden">
+        <Sidebar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          participants={participants}
+          messages={messages}
+          onSendMessage={sendMessage}
+        />
       </div>
     </div>
   );
