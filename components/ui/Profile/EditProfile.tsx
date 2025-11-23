@@ -19,8 +19,12 @@ const EditProfile: React.FC<EditProfileProps> = ({ user, onUpdate, isLoading, is
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const ageNumber = formData.age ? parseInt(formData.age, 10) : undefined;
-    if (ageNumber !== undefined && (isNaN(ageNumber) || ageNumber < 0 || ageNumber > 150)) {
-      return; // Validación de edad
+    // Validación de edad: debe ser >= 15 y <= 150, no puede ser 0
+    if (ageNumber !== undefined) {
+      if (isNaN(ageNumber) || ageNumber < 15 || ageNumber > 150 || ageNumber === 0) {
+        alert('La edad debe ser mayor de 14 años y no puede ser 0');
+        return;
+      }
     }
     await onUpdate({
       firstName: formData.firstName || undefined,
@@ -33,9 +37,10 @@ const EditProfile: React.FC<EditProfileProps> = ({ user, onUpdate, isLoading, is
   };
 
   const handleChange = (field: string, value: string) => {
-    // Prevenir números negativos en el campo de edad
+    // Prevenir números negativos y validar edad mínima en el campo de edad
     if (field === 'age') {
       const numValue = parseInt(value, 10);
+      // Permitir campo vacío o números válidos (>= 0)
       if (value === "" || (!isNaN(numValue) && numValue >= 0)) {
         setFormData(prev => ({
           ...prev,
@@ -191,11 +196,14 @@ const EditProfile: React.FC<EditProfileProps> = ({ user, onUpdate, isLoading, is
                     }
                   }}
                   placeholder="25"
-                  min="0"
+                  min="15"
                   max="150"
                   disabled={isGoogleUser}
                   className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 />
+                <p className="text-xs text-gray-400 mt-2">
+                  La edad debe ser mayor de 14 años (mínimo 15)
+                </p>
               </div>
             </div>
 

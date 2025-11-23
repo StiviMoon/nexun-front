@@ -2,6 +2,7 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { ProfileInformationProps } from './types';
 
 const ProfileInformation: React.FC<ProfileInformationProps> = ({ 
@@ -9,6 +10,16 @@ const ProfileInformation: React.FC<ProfileInformationProps> = ({
   onSignOut, 
   isSignOutLoading 
 }) => {
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    try {
+      await onSignOut();
+      router.push('/');
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+    }
+  };
   const getInitials = (name: string | null) => {
     if (!name) return 'U';
     const names = name.trim().split(' ');
@@ -103,7 +114,7 @@ const ProfileInformation: React.FC<ProfileInformationProps> = ({
             Editar perfil
           </button>
           <button
-            onClick={onSignOut}
+            onClick={handleSignOut}
             disabled={isSignOutLoading}
             className="w-full px-6 py-3 rounded-lg font-semibold text-white bg-zinc-800 hover:bg-zinc-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >

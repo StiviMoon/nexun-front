@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Eye, EyeOff } from 'lucide-react';
 
 interface DeleteAccountProps {
   onDelete: (password: string) => Promise<void>;
@@ -13,6 +13,7 @@ const DeleteAccount: React.FC<DeleteAccountProps> = ({ onDelete, isLoading }) =>
   const [confirmText, setConfirmText] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleDelete = async () => {
     setError('');
@@ -29,7 +30,7 @@ const DeleteAccount: React.FC<DeleteAccountProps> = ({ onDelete, isLoading }) =>
 
     try {
       await onDelete(password);
-    } catch (err) {
+    } catch {
       setError('Error al eliminar la cuenta. Verifica tu contraseña.');
     }
   };
@@ -80,7 +81,7 @@ const DeleteAccount: React.FC<DeleteAccountProps> = ({ onDelete, isLoading }) =>
         {/* Confirmation Input */}
         <div className="mb-6">
           <p className="text-white text-sm mb-3">
-            Para confirmar, escribe "ELIMINAR" en mayúsculas:
+            Para confirmar, escribe &quot;ELIMINAR&quot; en mayúsculas:
           </p>
           <input
             type="text"
@@ -96,13 +97,23 @@ const DeleteAccount: React.FC<DeleteAccountProps> = ({ onDelete, isLoading }) =>
           <p className="text-white text-sm mb-3">
             Ingresa tu contraseña
           </p>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
-          />
+          <div className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 pr-12 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+              aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+            >
+              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+            </button>
+          </div>
         </div>
 
         {/* Separator Line */}
