@@ -155,9 +155,9 @@ export default function ChatPage() {
           subtitle="Comunícate en tiempo real con tu equipo"
         />
         
-        <div className="flex flex-1 overflow-hidden min-w-0">
+        <div className="flex flex-col lg:flex-row flex-1 overflow-hidden min-w-0">
           {/* Main Chat Area */}
-          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden order-2 lg:order-1">
         {!isConnected ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center space-y-3">
@@ -229,20 +229,22 @@ export default function ChatPage() {
                     )}
           </div>
 
-                  {/* Chat Sidebar - Moved to the right */}
-                  <ChatSidebar
-                    rooms={rooms}
-                    selectedRoomId={selectedRoom?.id}
-                    isConnected={isConnected}
-                    isConnecting={isConnecting}
-                    error={error}
-                    onCreateRoom={handleCreateRoom}
-                    onSelectRoom={handleSelectRoom}
-                    onJoinPublicRoom={handleJoinPublicRoom}
-                    onConnect={connect}
-                    onJoinWithCode={handleJoinWithCode}
-                    currentUserId={currentUser?.uid}
-                  />
+                  {/* Chat Sidebar - Responsive: Hidden on mobile, shown on desktop */}
+                  <div className="hidden lg:block lg:w-80 xl:w-96 flex-shrink-0 order-1 lg:order-2">
+                    <ChatSidebar
+                      rooms={rooms}
+                      selectedRoomId={selectedRoom?.id}
+                      isConnected={isConnected}
+                      isConnecting={isConnecting}
+                      error={error}
+                      onCreateRoom={handleCreateRoom}
+                      onSelectRoom={handleSelectRoom}
+                      onJoinPublicRoom={handleJoinPublicRoom}
+                      onConnect={connect}
+                      onJoinWithCode={handleJoinWithCode}
+                      currentUserId={currentUser?.uid}
+                    />
+                  </div>
         </div>
       </div>
     </AppLayout>

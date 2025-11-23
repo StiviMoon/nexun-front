@@ -16,15 +16,16 @@ const QuickActionCard: React.FC<QuickActionCardProps> = ({ title, icon, onClick 
   return (
     <button
       onClick={onClick}
-      className="group relative bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 hover:border-cyan-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/10 flex flex-col items-center justify-center gap-4 h-full min-h-[180px]"
+      className="group relative bg-zinc-900/50 border border-zinc-800 rounded-xl sm:rounded-2xl p-6 sm:p-8 hover:border-cyan-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/10 flex flex-col items-center justify-center gap-3 sm:gap-4 h-full min-h-[140px] sm:min-h-[180px] focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-zinc-950"
+      aria-label={title}
     >
       {/* Icon Container */}
-      <div className="w-20 h-20 rounded-full bg-zinc-800 flex items-center justify-center group-hover:bg-cyan-500/10 transition-all">
-        <Icon className="w-10 h-10 text-purple-300 group-hover:text-cyan-400 transition-colors" strokeWidth={1.5} />
+      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-zinc-800 flex items-center justify-center group-hover:bg-cyan-500/10 transition-all">
+        <Icon className="w-8 h-8 sm:w-10 sm:h-10 text-purple-300 group-hover:text-cyan-400 transition-colors" strokeWidth={1.5} aria-hidden="true" />
       </div>
 
       {/* Title */}
-      <h3 className="text-white font-medium text-center group-hover:text-cyan-400 transition-colors">
+      <h3 className="text-white font-medium text-center text-sm sm:text-base group-hover:text-cyan-400 transition-colors">
         {title}
       </h3>
 
