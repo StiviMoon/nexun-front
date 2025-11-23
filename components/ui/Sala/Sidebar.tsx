@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Users, MessageSquare, X, ChevronLeft } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Users, MessageSquare, X } from 'lucide-react';
 import { Participant, SidebarTab, ChatMessage } from '@/types/meetingRoom';
 import { ParticipantListItem } from './ParticipantListItem';
 
@@ -48,8 +48,8 @@ export function Sidebar({
         <button
           onClick={() => onTabChange('participants')}
           className={`
-            flex-1 flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 sm:py-3
-            text-xs sm:text-sm font-medium transition-colors
+            flex-1 flex items-center justify-center gap-2 px-4 py-3
+            text-sm font-medium transition-colors
             ${activeTab === 'participants'
               ? 'text-white bg-zinc-800/50 border-b-2 border-purple-500'
               : 'text-zinc-400 hover:text-white'
@@ -59,14 +59,13 @@ export function Sidebar({
           aria-pressed={activeTab === 'participants'}
         >
           <Users className="w-4 h-4" />
-          <span className="hidden sm:inline">Participantes</span>
-          <span className="sm:hidden">Part.</span>
+          Participantes
         </button>
         <button
           onClick={() => onTabChange('chat')}
           className={`
-            flex-1 flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 sm:py-3
-            text-xs sm:text-sm font-medium transition-colors
+            flex-1 flex items-center justify-center gap-2 px-4 py-3
+            text-sm font-medium transition-colors
             ${activeTab === 'chat'
               ? 'text-white bg-zinc-800/50 border-b-2 border-purple-500'
               : 'text-zinc-400 hover:text-white'
@@ -75,15 +74,15 @@ export function Sidebar({
           aria-label="Ver chat"
           aria-pressed={activeTab === 'chat'}
         >
+          Chat
           <MessageSquare className="w-4 h-4" />
-          <span>Chat</span>
         </button>
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
         {activeTab === 'participants' ? (
-          <div className="p-2 sm:p-3 space-y-1">
+          <div className="p-2 space-y-1">
             {participants.map((participant) => (
               <ParticipantListItem key={participant.id} participant={participant} />
             ))}
@@ -148,7 +147,7 @@ export function Sidebar({
 
       {/* Desktop Sidebar */}
       <aside 
-        className="hidden lg:flex w-full bg-zinc-950 border-l border-zinc-800 flex flex-col h-full"
+        className="hidden lg:flex w-full bg-zinc-950 border-l border-zinc-800 flex-col h-full"
         aria-label="Panel lateral"
       >
         {sidebarContent}
@@ -165,33 +164,79 @@ function ChatPanel({
   messages: ChatMessage[];
   onSendMessage: (content: string) => void;
 }) {
+  const [message, setMessage] = useState('');
+  const messagesEndRef = React.useRef<HTMLDivElement>(null);
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const form = e.currentTarget;
-    const input = form.elements.namedItem('message') as HTMLInputElement;
-    if (input.value.trim()) {
-      onSendMessage(input.value.trim());
-      input.value = '';
+    if (message.trim()) {
+      onSendMessage(message.trim());
+      setMessage('');
     }
   };
 
+  // Auto-scroll to bottom when new messages arrive
+  React.useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-1 p-3 space-y-3 overflow-y-auto">
-        {messages.map((msg) => (
-          <div key={msg.id} className="text-sm">
-            <span className="text-purple-400 font-medium">{msg.senderName}: </span>
-            <span className="text-zinc-300">{msg.content}</span>
+      {/* Messages Container */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-3">
+        {messages.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-xs text-zinc-500 text-center">No hay mensajes aún</p>
           </div>
-        ))}
+        ) : (
+          <>
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className="flex flex-col items-end gap-1.5 px-2 py-2 rounded-lg hover:bg-zinc-900/30 transition-colors group"
+              >
+                <div className="flex items-center gap-2 w-full justify-end">
+                  <span className="text-xs text-zinc-500 font-medium">{msg.senderName}</span>
+                  <span className="text-xs text-zinc-500">
+                    {new Date(msg.timestamp).toLocaleTimeString('es-ES', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                </div>
+                <div className="bg-zinc-800 rounded-lg px-3 py-2.5 max-w-[85%] ml-auto shadow-sm">
+                  <p className="text-sm text-white leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                </div>
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </>
+        )}
       </div>
-      <form onSubmit={handleSubmit} className="p-3 border-t border-zinc-800">
-        <input
-          name="message"
-          type="text"
-          placeholder="Escribe un mensaje..."
-          className="w-full bg-zinc-800 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
-        />
+
+      {/* Input Form */}
+      <form onSubmit={handleSubmit} className="p-3 border-t border-zinc-800 bg-zinc-950">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-end gap-2">
+            <input
+              name="message"
+              type="text"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Escribe un mensaje..."
+              className="flex-1 bg-zinc-800 rounded-lg px-3 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-transparent transition-all"
+              autoComplete="off"
+            />
+            <button
+              type="submit"
+              disabled={!message.trim()}
+              className="shrink-0 w-10 h-10 rounded-lg bg-purple-500 hover:bg-purple-600 disabled:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors shadow-sm"
+              aria-label="Enviar mensaje"
+            >
+              <MessageSquare className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
       </form>
     </div>
   );
