@@ -59,14 +59,14 @@ const ProfileInformation: React.FC<ProfileInformationProps> = ({
                 />
               </div>
 
-              {/* Apellidos - Campo vacío por ahora */}
+              {/* Apellidos */}
               <div>
                 <label className="block text-white text-sm font-medium mb-2">Apellidos</label>
                 <input
                   type="text"
-                  value="No especificado"
+                  value={user.lastName || 'No especificado'}
                   disabled
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-gray-500"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white"
                 />
               </div>
 
@@ -81,14 +81,14 @@ const ProfileInformation: React.FC<ProfileInformationProps> = ({
                 />
               </div>
 
-              {/* Edad - Campo vacío por ahora */}
+              {/* Edad */}
               <div>
                 <label className="block text-white text-sm font-medium mb-2">Edad</label>
                 <input
                   type="text"
-                  value="No especificado"
+                  value={user.age ? `${user.age} años` : 'No especificado'}
                   disabled
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-gray-500"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white"
                 />
               </div>
             </div>

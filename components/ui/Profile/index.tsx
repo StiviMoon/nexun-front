@@ -51,6 +51,7 @@ const Profile: React.FC<ProfileProps> = ({
             user={user}
             onUpdate={onUpdateProfile}
             isLoading={isUpdateLoading}
+            isGoogleUser={user.providerIds?.includes('google.com') || false}
           />
         );
       case 'security':
@@ -58,6 +59,7 @@ const Profile: React.FC<ProfileProps> = ({
           <Security
             onChangePassword={onChangePassword}
             isLoading={isPasswordLoading}
+            isGoogleUser={user.providerIds?.includes('google.com') || false}
           />
         );
       case 'delete':

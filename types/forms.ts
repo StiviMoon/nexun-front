@@ -27,12 +27,29 @@ export const LoginFormSchema = z.object({
 
 export type LoginFormValues = z.infer<typeof LoginFormSchema>;
 
+const lastNameSchema = z
+  .string()
+  .trim()
+  .min(1, "Tu apellido es obligatorio.");
+
+const ageSchema = z
+  .string()
+  .min(1, "La edad es obligatoria.")
+  .refine((val) => {
+    const num = parseInt(val, 10);
+    return !isNaN(num) && num >= 15 && num <= 150;
+  }, {
+    message: "Debes ser mayor de 14 años y menor de 150 años."
+  });
+
 export const RegisterFormSchema = z
   .object({
-    name: nameSchema,
+    firstName: nameSchema,
+    lastName: lastNameSchema,
     email: emailSchema,
     password: passwordSchema,
     confirmPassword: z.string().min(1, "Confirma tu contraseña."),
+    age: ageSchema,
   })
   .refine((values) => values.password === values.confirmPassword, {
     message: "Las contraseñas no coinciden.",

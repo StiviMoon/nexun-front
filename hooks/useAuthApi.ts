@@ -36,13 +36,17 @@ export const useRegister = () => {
     mutationFn: async ({
       email,
       password,
-      name,
+      firstName,
+      lastName,
+      age,
     }: {
       email: string;
       password: string;
-      name?: string;
+      firstName: string;
+      lastName: string;
+      age: number;
     }): Promise<{ user: UserProfile; token: string }> => {
-      const response = await apiClient.register(email, password, name);
+      const response = await apiClient.register(email, password, firstName, lastName, age);
       
       if (!response.success || !response.token || !response.user) {
         throw new Error(response.error || "Failed to register user");
@@ -61,6 +65,52 @@ export const useRegister = () => {
     onError: () => {
       // Limpiar cache en caso de error
       queryClient.removeQueries({ queryKey: authKeys.me() });
+    },
+  });
+};
+
+/**
+ * Hook para actualizar perfil de usuario
+ */
+export const useUpdateProfile = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (updateData: {
+      firstName?: string;
+      lastName?: string;
+      age?: number;
+      displayName?: string;
+    }): Promise<UserProfile> => {
+      const response = await apiClient.updateProfile(updateData);
+      
+      if (!response.success || !response.user) {
+        throw new Error(response.error || "Failed to update profile");
+      }
+
+      return response.user;
+    },
+    onSuccess: (user) => {
+      // Actualizar cache del usuario actual
+      queryClient.setQueryData(authKeys.me(), user);
+    },
+  });
+};
+
+/**
+ * Hook para actualizar contraseña
+ */
+export const useUpdatePassword = () => {
+  return useMutation({
+    mutationFn: async (passwordData: {
+      currentPassword: string;
+      newPassword: string;
+    }): Promise<void> => {
+      const response = await apiClient.updatePassword(passwordData);
+      
+      if (!response.success) {
+        throw new Error(response.error || "Failed to update password");
+      }
     },
   });
 };

@@ -135,14 +135,14 @@ export const useAuthWithQuery = () => {
 
   // Registro mejorado con React Query
   const registerWithEmailPassword = useCallback(
-    async (name: string, email: string, password: string) => {
+    async (firstName: string, lastName: string, email: string, password: string, age: number) => {
       clearAuthError("signUp");
       clearAuthError("google");
       setEmailSignUpLoading(true);
 
       try {
         // Registro con React Query
-        const { token } = await registerMutation.mutateAsync({ email, password, name });
+        const { token } = await registerMutation.mutateAsync({ email, password, firstName, lastName, age });
 
         // Intercambiar custom token por ID token
         const idToken = await exchangeCustomTokenForIdToken(token);
@@ -235,6 +235,7 @@ export const useAuthWithQuery = () => {
     // Helpers
     setAuthError,
     clearAuthError,
+    setCurrentUser,
 
     // Estados de React Query
     isLoginPending: loginMutation.isPending,

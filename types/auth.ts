@@ -19,7 +19,7 @@ export type AuthState = {
   setAuthError: (key: AuthErrorKey, message: string) => void;
   clearAuthError: (key: AuthErrorKey) => void;
   signInWithEmailPassword: (email: string, password: string) => Promise<void>;
-  registerWithEmailPassword: (name: string, email: string, password: string) => Promise<void>;
+  registerWithEmailPassword: (firstName: string, lastName: string, email: string, password: string, age: number) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOutUser: () => Promise<void>;
   // Setters para React Query
