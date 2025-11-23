@@ -56,37 +56,37 @@ export function ParticipantVideo({
       )}
 
       {/* Bottom Bar - Name & Status */}
-      <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-3 bg-gradient-to-t from-black/80 to-transparent">
-        <div className="flex items-center justify-between gap-2">
-          <span className={`text-white ${isMain ? 'text-sm sm:text-base' : 'text-xs'} font-medium truncate`}>
+      <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
+        <div className="flex items-center justify-between">
+          <span className={`text-white ${isMain ? 'text-base' : 'text-xs'} font-medium`}>
             {participant.name}
           </span>
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2">
             {isMain ? (
               // Show mic icon (on/off) for main participant
               participant.isMuted ? (
-                <MicOff className={`text-zinc-400 ${isMain ? 'w-4 h-4 sm:w-5 sm:h-5' : 'w-3 h-3 sm:w-3.5 sm:h-3.5'}`} aria-hidden="true" />
+                <MicOff className={`text-zinc-400 ${isMain ? 'w-5 h-5' : 'w-3.5 h-3.5'}`} />
               ) : (
-                <Mic className={`text-green-400 ${isMain ? 'w-4 h-4 sm:w-5 sm:h-5' : 'w-3 h-3 sm:w-3.5 sm:h-3.5'}`} aria-hidden="true" />
+                <Mic className={`text-green-400 ${isMain ? 'w-5 h-5' : 'w-3.5 h-3.5'}`} />
               )
             ) : (
               // For non-main participants show only the 'off' icon when muted
               participant.isMuted && (
-                <MicOff className={`text-zinc-400 ${isMain ? 'w-4 h-4 sm:w-5 sm:h-5' : 'w-3 h-3 sm:w-3.5 sm:h-3.5'}`} aria-hidden="true" />
+                <MicOff className={`text-zinc-400 ${isMain ? 'w-5 h-5' : 'w-3.5 h-3.5'}`} />
               )
             )}
 
             {isMain ? (
               // Show camera icon (on/off) for main participant
               participant.isCameraOff ? (
-                <VideoOff className={`text-zinc-400 ${isMain ? 'w-4 h-4 sm:w-5 sm:h-5' : 'w-3 h-3 sm:w-3.5 sm:h-3.5'}`} aria-hidden="true" />
+                <VideoOff className={`text-zinc-400 ${isMain ? 'w-5 h-5' : 'w-3.5 h-3.5'}`} />
               ) : (
-                <Video className={`text-green-400 ${isMain ? 'w-4 h-4 sm:w-5 sm:h-5' : 'w-3 h-3 sm:w-3.5 sm:h-3.5'}`} aria-hidden="true" />
+                <Video className={`text-green-400 ${isMain ? 'w-5 h-5' : 'w-3.5 h-3.5'}`} />
               )
             ) : (
               // For non-main participants show only the 'off' icon when camera is off
               participant.isCameraOff && (
-                <VideoOff className={`text-zinc-400 ${isMain ? 'w-4 h-4 sm:w-5 sm:h-5' : 'w-3 h-3 sm:w-3.5 sm:h-3.5'}`} aria-hidden="true" />
+                <VideoOff className={`text-zinc-400 ${isMain ? 'w-5 h-5' : 'w-3.5 h-3.5'}`} />
               )
             )}
           </div>
