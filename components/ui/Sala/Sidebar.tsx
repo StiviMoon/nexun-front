@@ -155,52 +155,6 @@ export function Sidebar({
       </aside>
     </>
   );
-      {/* Tabs */}
-      <div className="flex border-b border-zinc-800">
-        <button
-          onClick={() => onTabChange('participants')}
-          className={`
-            flex-1 flex items-center justify-center gap-2 px-4 py-3
-            text-sm font-medium transition-colors
-            ${activeTab === 'participants'
-              ? 'text-white bg-zinc-800/50 border-b-2 border-purple-500'
-              : 'text-zinc-400 hover:text-white'
-            }
-          `}
-        >
-          <Users className="w-4 h-4" />
-          Participantes
-        </button>
-        <button
-          onClick={() => onTabChange('chat')}
-          className={`
-            flex-1 flex items-center justify-center gap-2 px-4 py-3
-            text-sm font-medium transition-colors
-            ${activeTab === 'chat'
-              ? 'text-white bg-zinc-800/50 border-b-2 border-purple-500'
-              : 'text-zinc-400 hover:text-white'
-            }
-          `}
-        >
-          Chat
-          <MessageSquare className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto">
-        {activeTab === 'participants' ? (
-          <div className="p-2 space-y-1">
-            {participants.map((participant) => (
-              <ParticipantListItem key={participant.id} participant={participant} />
-            ))}
-          </div>
-        ) : (
-          <ChatPanel messages={messages} onSendMessage={onSendMessage} />
-        )}
-      </div>
-    </aside>
-  );
 }
 
 // Panel de Chat
