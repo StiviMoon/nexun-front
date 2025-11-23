@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Bell } from 'lucide-react';
 import MeetingDetails from './MeetingDetails';
 import ParticipantsSection from './ParticipantsSection';
@@ -47,21 +48,36 @@ const CreateMeeting: React.FC<CreateMeetingProps> = ({
     }));
   };
 
+  const router = useRouter();
+
   const handleCreateMeeting = () => {
     console.log('Creando reunión:', formData);
-    // Aquí iría la lógica para crear la reunión
-    // Por ejemplo: API call, guardar en base de datos, etc.
-    alert('¡Reunión creada exitosamente!');
-    
-    // Opcional: Reset form
-    // setFormData({
-    //   title: '',
-    //   description: '',
-    //   duration: '',
-    //   date: '',
-    //   time: '',
-    //   participants: []
-    // });
+    // Aquí iría la lógica para crear la reunión en backend
+    // Por ahora generamos un id local y navegamos a la sala
+    const roomId = typeof crypto !== 'undefined' && (crypto as any).randomUUID
+      ? (crypto as any).randomUUID()
+      : Math.random().toString(36).slice(2, 10);
+
+    // Guardar temporalmente los datos de la reunión en sessionStorage
+    try {
+      const payload = {
+        id: roomId,
+        title: formData.title,
+        description: formData.description,
+        date: formData.date,
+        time: formData.time,
+        duration: formData.duration,
+        participants: formData.participants,
+      };
+      sessionStorage.setItem(`meeting:${roomId}`, JSON.stringify(payload));
+    } catch (e) {
+      // sessionStorage puede no estar disponible en algunos entornos; ignorar
+      console.warn('No se pudo guardar meeting en sessionStorage', e);
+    }
+
+    // TODO: Llamar a API para crear reunión y obtener el id real
+    // Navegar a la sala creada
+    router.push(`/Sala/${roomId}`);
   };
 
   return (

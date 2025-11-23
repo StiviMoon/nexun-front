@@ -43,7 +43,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, className = "" }
       <AsideNavbar />
 
       {/* Main Content */}
-      <main className={`flex-1 overflow-auto ${className}`}>
+      <main className={`flex-1 overflow-auto pt-16 lg:pt-0 ${className}`}>
         {children}
       </main>
     </div>

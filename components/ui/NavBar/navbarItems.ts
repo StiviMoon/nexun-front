@@ -32,20 +32,15 @@ export const navbarItems: NavbarItem[] = [
     id: 'unirse',
     label: 'Unirse a Reunión',
     icon: Link2,
-    href: '/unirse'
+    href: '/UnirseReu'
   },
   {
     id: 'historial',
     label: 'Historial de reuniones',
     icon: History,
-    href: '/historial'
+    href: '/Historial'
   },
-  {
-    id: 'perfil',
-    label: 'Perfil',
-    icon: User,
-    href: '/perfil'
-  }
+  
 ];
 
 export default navbarItems;

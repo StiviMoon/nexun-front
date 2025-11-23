@@ -4,6 +4,7 @@
 import React from 'react';
 import { Calendar, Clock, Users } from 'lucide-react';
 import { MeetingSummaryProps } from './types';
+import { redirect } from 'next/navigation';
 
 const MeetingSummary: React.FC<MeetingSummaryProps> = ({ formData, onCreateMeeting }) => {
   const formatDate = (dateString: string) => {

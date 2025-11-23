@@ -20,7 +20,7 @@ const QuickActionCard: React.FC<QuickActionCardProps> = ({ title, icon, onClick 
     >
       {/* Icon Container */}
       <div className="w-20 h-20 rounded-full bg-zinc-800 flex items-center justify-center group-hover:bg-cyan-500/10 transition-all">
-        <Icon className="w-10 h-10 text-gray-400 group-hover:text-cyan-400 transition-colors" strokeWidth={1.5} />
+        <Icon className="w-10 h-10 text-purple-300 group-hover:text-cyan-400 transition-colors" strokeWidth={1.5} />
       </div>
 
       {/* Title */}
