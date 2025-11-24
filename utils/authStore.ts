@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { onAuthStateChanged, getAuth } from "firebase/auth";
-import { initializeApp, getApps } from "firebase/app";
+import { initializeApp, getApps, FirebaseError } from "firebase/app";
 import { getReadableSignInError, getReadableSignUpError } from "@/utils/authErrors";
 import { AuthState } from "@/types/auth";
 import { apiClient } from "@/utils/api/client";
@@ -8,6 +8,7 @@ import { firebaseConfig } from "@/config/firebase";
 import { 
   exchangeCustomTokenForIdToken, 
   signInWithGoogle as firebaseGoogleAuth,
+  signInWithGithub as firebaseGithubAuth,
   signOutFirebase
 } from "@/utils/auth/tokenService";
 import { verifyPassword } from "@/utils/auth/firebaseAuthAPI";
@@ -26,6 +27,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isEmailSignInLoading: false,
   isEmailSignUpLoading: false,
   isGoogleLoading: false,
+  isGithubLoading: false,
   isSignOutLoading: false,
   authErrors: {},
 
@@ -35,6 +37,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setEmailSignInLoading: (loading) => set({ isEmailSignInLoading: loading }),
   setEmailSignUpLoading: (loading) => set({ isEmailSignUpLoading: loading }),
   setGoogleLoading: (loading) => set({ isGoogleLoading: loading }),
+  setGithubLoading: (loading) => set({ isGithubLoading: loading }),
   setSignOutLoading: (loading) => set({ isSignOutLoading: loading }),
 
   initializeAuthListener: () => {
@@ -98,6 +101,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     clearAuthError("signIn");
     clearAuthError("google");
+    clearAuthError("github");
 
     set({ isEmailSignInLoading: true });
 
@@ -152,6 +156,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     clearAuthError("signUp");
     clearAuthError("google");
+    clearAuthError("github");
 
     set({ isEmailSignUpLoading: true });
 
@@ -164,7 +169,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       // Exchange custom token for ID token
-      const idToken = await exchangeCustomTokenForIdToken(response.token);
+      await exchangeCustomTokenForIdToken(response.token);
       
       // Token is now managed automatically by the API client via Firebase
       set({ currentUser: response.user });
@@ -187,6 +192,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { setAuthError, clearAuthError } = get();
 
     clearAuthError("google");
+    clearAuthError("github");
     clearAuthError("signIn");
     clearAuthError("signUp");
 
@@ -210,6 +216,53 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       throw error;
     } finally {
       set({ isGoogleLoading: false });
+    }
+  },
+
+  signInWithGithub: async () => {
+    const { setAuthError, clearAuthError } = get();
+
+    clearAuthError("github");
+    clearAuthError("google");
+    clearAuthError("signIn");
+    clearAuthError("signUp");
+
+    set({ isGithubLoading: true });
+
+    try {
+      console.log("AuthStore GitHub - Starting authentication flow");
+      const { idToken } = await firebaseGithubAuth();
+      console.log("AuthStore GitHub - Received Firebase ID token length:", idToken.length);
+
+      const response = await apiClient.githubAuth(idToken);
+      console.log("AuthStore GitHub - Backend response:", response);
+
+      if (response.success && response.user) {
+        set({ currentUser: response.user });
+        console.log("AuthStore GitHub - User saved:", response.user.uid);
+        return;
+      }
+
+      throw new Error(response.error || "Failed to authenticate with GitHub");
+    } catch (error) {
+      console.error("AuthStore GitHub - Flow failed:", error);
+
+      if (
+        error instanceof FirebaseError &&
+        error.code === "auth/account-exists-with-different-credential"
+      ) {
+        setAuthError(
+          "github",
+          "Este correo ya está registrado con otro proveedor. Inicia sesión con ese método y vincula GitHub desde tu perfil."
+        );
+      } else {
+        setAuthError("github", "No fue posible autenticarte con GitHub.");
+      }
+
+      throw error;
+    } finally {
+      console.log("AuthStore GitHub - Cleaning up");
+      set({ isGithubLoading: false });
     }
   },
 

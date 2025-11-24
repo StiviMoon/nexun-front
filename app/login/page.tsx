@@ -23,10 +23,12 @@ const LoginPage = () => {
     authErrors, 
     isEmailSignInLoading, 
     isGoogleLoading,
+    isGithubLoading,
     signInWithEmailPassword,
     clearAuthError,
     isLoginPending,
-    isGoogleAuthPending
+    isGoogleAuthPending,
+    isGithubAuthPending
   } = useAuthWithQuery();
 
   const { formData, handleChange, handleSubmit, isSubmitDisabled } = useAuthForm({
@@ -41,20 +43,22 @@ const LoginPage = () => {
     },
     errorKey: "signIn",
     isLoading: isEmailSignInLoading || isLoginPending,
-    otherLoading: isGoogleLoading || isGoogleAuthPending
+    otherLoading: isGoogleLoading || isGoogleAuthPending || isGithubLoading || isGithubAuthPending
   });
 
-  const { handleGoogleSignIn } = useSocialAuth({
-    isLoading: isGoogleLoading || isGoogleAuthPending,
-    otherLoading: isEmailSignInLoading || isLoginPending
+  const { handleGoogleSignIn, handleGithubSignIn } = useSocialAuth({
+    isGoogleLoading: isGoogleLoading || isGoogleAuthPending,
+    isGithubLoading: isGithubLoading || isGithubAuthPending,
+    isBlocking: isEmailSignInLoading || isLoginPending
   });
 
   useEffect(() => {
     clearAuthError("signIn");
     clearAuthError("google");
+    clearAuthError("github");
   }, [clearAuthError]);
 
-  const errorMessage = authErrors.signIn ?? authErrors.google;
+  const errorMessage = authErrors.signIn ?? authErrors.google ?? authErrors.github;
 
   return (
     <AuthShell>
@@ -103,14 +107,14 @@ const LoginPage = () => {
           <SocialAuthButton
             provider="google"
             onClick={handleGoogleSignIn}
-            disabled={isGoogleLoading || isEmailSignInLoading || isGoogleAuthPending || isLoginPending}
+            disabled={isGoogleLoading || isEmailSignInLoading || isGoogleAuthPending || isLoginPending || isGithubLoading || isGithubAuthPending}
             isLoading={isGoogleLoading || isGoogleAuthPending}
           />
           <SocialAuthButton
             provider="github"
-            onClick={() => {}}
-            disabled
-            className="opacity-70"
+            onClick={handleGithubSignIn}
+            disabled={isGithubLoading || isEmailSignInLoading || isGithubAuthPending || isLoginPending || isGoogleLoading || isGoogleAuthPending}
+            isLoading={isGithubLoading || isGithubAuthPending}
           />
         </div>
 

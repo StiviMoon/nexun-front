@@ -12,13 +12,14 @@ const PerfilPage: React.FC = () => {
   const updateProfileMutation = useUpdateProfile();
   const updatePasswordMutation = useUpdatePassword();
 
+  const providerIds = currentUser?.providerIds || [];
+  const isThirdPartyUser = providerIds.some((provider) => provider === "google.com" || provider === "github.com");
+
   const handleUpdateProfile = async (data: ProfileFormData) => {
     if (!currentUser) return;
     
-    // Verificar si es usuario de Google
-    const isGoogleUser = currentUser.providerIds?.includes('google.com') || false;
-    if (isGoogleUser) {
-      throw new Error('Los usuarios de Google no pueden editar su información de perfil.');
+    if (isThirdPartyUser) {
+      throw new Error('Los usuarios que inician con Google o GitHub no pueden editar su información desde Nexun.');
     }
 
     try {
@@ -53,10 +54,8 @@ const PerfilPage: React.FC = () => {
   const handleChangePassword = async (currentPassword: string, newPassword: string) => {
     if (!currentUser) return;
     
-    // Verificar si es usuario de Google
-    const isGoogleUser = currentUser.providerIds?.includes('google.com') || false;
-    if (isGoogleUser) {
-      throw new Error('Los usuarios de Google no pueden cambiar su contraseña.');
+    if (isThirdPartyUser) {
+      throw new Error('Los usuarios que inician con Google o GitHub administran su contraseña en el proveedor.');
     }
     
     try {

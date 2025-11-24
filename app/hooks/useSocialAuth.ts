@@ -4,16 +4,17 @@ import { useRouter } from "next/navigation";
 import { useAuthWithQuery } from "@/hooks/useAuthWithQuery";
 
 type UseSocialAuthOptions = {
-  isLoading: boolean;
-  otherLoading: boolean;
+  isGoogleLoading: boolean;
+  isGithubLoading: boolean;
+  isBlocking: boolean;
 };
 
-const useSocialAuth = ({ isLoading, otherLoading }: UseSocialAuthOptions) => {
+const useSocialAuth = ({ isGoogleLoading, isGithubLoading, isBlocking }: UseSocialAuthOptions) => {
   const router = useRouter();
-  const { signInWithGoogle } = useAuthWithQuery();
+  const { signInWithGoogle, signInWithGithub } = useAuthWithQuery();
 
   const handleGoogleSignIn = async () => {
-    if (isLoading || otherLoading) {
+    if (isGoogleLoading || isBlocking) {
       return;
     }
 
@@ -21,12 +22,26 @@ const useSocialAuth = ({ isLoading, otherLoading }: UseSocialAuthOptions) => {
       await signInWithGoogle();
       router.push("/dashboard");
     } catch {
+      // handled by store
+    }
+  };
+
+  const handleGithubSignIn = async () => {
+    if (isGithubLoading || isBlocking) {
+      return;
+    }
+
+    try {
+      await signInWithGithub();
+      router.push("/dashboard");
+    } catch {
       // Error handling is done in the auth store
     }
   };
 
   return {
-    handleGoogleSignIn
+    handleGoogleSignIn,
+    handleGithubSignIn
   };
 };
 

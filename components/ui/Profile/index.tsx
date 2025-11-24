@@ -34,6 +34,8 @@ const Profile: React.FC<ProfileProps> = ({
   isDeleteLoading = false
 }) => {
   const [activeTab, setActiveTab] = useState<ProfileTab>('information');
+  const lockedProviders = ["google.com", "github.com"];
+  const isThirdPartyUser = user.providerIds?.some((provider) => lockedProviders.includes(provider)) || false;
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -51,7 +53,7 @@ const Profile: React.FC<ProfileProps> = ({
             user={user}
             onUpdate={onUpdateProfile}
             isLoading={isUpdateLoading}
-            isGoogleUser={user.providerIds?.includes('google.com') || false}
+            isProviderLocked={isThirdPartyUser}
           />
         );
       case 'security':
@@ -59,7 +61,7 @@ const Profile: React.FC<ProfileProps> = ({
           <Security
             onChangePassword={onChangePassword}
             isLoading={isPasswordLoading}
-            isGoogleUser={user.providerIds?.includes('google.com') || false}
+            isProviderLocked={isThirdPartyUser}
           />
         );
       case 'delete':
