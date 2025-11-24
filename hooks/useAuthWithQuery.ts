@@ -3,7 +3,7 @@
 import { useCallback, useEffect } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { getAuth } from "firebase/auth";
-import { initializeApp, getApps } from "firebase/app";
+import { initializeApp, getApps, FirebaseError } from "firebase/app";
 import { useAuthStore } from "@/utils/authStore";
 import { useVerifyToken, useLogout } from "./useAuthApi";
 import { exchangeCustomTokenForIdToken, signInWithGoogle as firebaseGoogleAuth, signInWithGithub as firebaseGithubAuth } from "@/utils/auth/tokenService";
@@ -205,14 +205,33 @@ export const useAuthWithQuery = () => {
     setGithubLoading(true);
 
     try {
+      console.log("useAuthWithQuery GitHub - Triggering Firebase popup");
       const { idToken } = await firebaseGithubAuth();
+      console.log("useAuthWithQuery GitHub - Firebase token length:", idToken.length);
+
+      console.log("useAuthWithQuery GitHub - Calling backend mutation");
       const user = await githubAuthMutation.mutateAsync({ idToken });
 
       setCurrentUser(user);
+      console.log("useAuthWithQuery GitHub - Stored user:", user.uid);
     } catch (error) {
-      setAuthError("github", "No fue posible autenticarte con GitHub.");
+      console.error("useAuthWithQuery GitHub - Error:", error);
+
+      if (
+        error instanceof FirebaseError &&
+        error.code === "auth/account-exists-with-different-credential"
+      ) {
+        setAuthError(
+          "github",
+          "Esta cuenta ya está asociada a otro método de acceso. Inicia con ese proveedor y luego vincula GitHub desde tu perfil."
+        );
+      } else {
+        setAuthError("github", "No fue posible autenticarte con GitHub.");
+      }
+
       throw error;
     } finally {
+      console.log("useAuthWithQuery GitHub - Finished flow");
       setGithubLoading(false);
     }
   }, [githubAuthMutation, clearAuthError, setGithubLoading, setCurrentUser, setAuthError]);

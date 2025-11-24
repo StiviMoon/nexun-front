@@ -7,10 +7,10 @@ import { Lock, Eye, EyeOff } from 'lucide-react';
 interface SecurityProps {
   onChangePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   isLoading: boolean;
-  isGoogleUser?: boolean;
+  isProviderLocked?: boolean;
 }
 
-const Security: React.FC<SecurityProps> = ({ onChangePassword, isLoading, isGoogleUser = false }) => {
+const Security: React.FC<SecurityProps> = ({ onChangePassword, isLoading, isProviderLocked = false }) => {
   const [formData, setFormData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -69,10 +69,10 @@ const Security: React.FC<SecurityProps> = ({ onChangePassword, isLoading, isGoog
 
       {/* Form Card */}
       <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8">
-        {isGoogleUser && (
+        {isProviderLocked && (
           <div className="mb-6 p-4 bg-yellow-900/20 border border-yellow-700/50 rounded-lg">
             <p className="text-yellow-400 text-sm">
-              ⚠️ Los usuarios de Google no pueden cambiar su contraseña desde aquí.
+              ⚠️ Los usuarios que se autentican con Google o GitHub administran su contraseña desde ese proveedor.
             </p>
           </div>
         )}
@@ -89,13 +89,13 @@ const Security: React.FC<SecurityProps> = ({ onChangePassword, isLoading, isGoog
                 onChange={(e) => setFormData(prev => ({ ...prev, currentPassword: e.target.value }))}
                 placeholder="********"
                 required
-                disabled={isGoogleUser}
+                disabled={isProviderLocked}
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 pr-12 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <button
                 type="button"
                 onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                disabled={isGoogleUser}
+                disabled={isProviderLocked}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label={showCurrentPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
               >
@@ -116,7 +116,7 @@ const Security: React.FC<SecurityProps> = ({ onChangePassword, isLoading, isGoog
                 onChange={(e) => setFormData(prev => ({ ...prev, newPassword: e.target.value }))}
                 placeholder="********"
                 required
-                disabled={isGoogleUser}
+                disabled={isProviderLocked}
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 pr-12 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <button
@@ -184,7 +184,7 @@ const Security: React.FC<SecurityProps> = ({ onChangePassword, isLoading, isGoog
 
             <button
               type="submit"
-              disabled={isLoading || isGoogleUser}
+              disabled={isLoading || isProviderLocked}
               className="flex-1 px-6 py-3 rounded-lg font-semibold text-white bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? 'Cambiando contraseña...' : 'Cambiar contraseña'}

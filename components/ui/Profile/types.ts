@@ -50,5 +50,5 @@ export interface EditProfileProps {
   };
   onUpdate: (data: ProfileFormData) => Promise<void>;
   isLoading: boolean;
-  isGoogleUser?: boolean;
+  isProviderLocked?: boolean;
 }

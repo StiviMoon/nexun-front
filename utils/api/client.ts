@@ -211,19 +211,66 @@ class ApiClient {
       throw new Error("ID token is required for GitHub authentication");
     }
 
+    console.log("GitHub Auth - Token length:", idToken.length);
+    console.log("GitHub Auth - URL:", url);
+
+    const requestBody = { idToken };
     const config: RequestInit = {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ idToken }),
+      body: JSON.stringify(requestBody),
     };
 
     try {
-      const response = await fetch(url, config);
-      const data = await response.json();
+      console.log("GitHub Auth - Sending request to:", url);
+      console.log("GitHub Auth - API Base URL:", this.baseUrl);
 
-      if (!response.ok || !data.success) {
+      let response: Response;
+      try {
+        response = await fetch(url, config);
+      } catch (fetchError) {
+        console.error("GitHub Auth - Fetch error:", fetchError);
+
+        if (fetchError instanceof TypeError) {
+          if (fetchError.message.includes("Failed to fetch") || fetchError.message.includes("NetworkError")) {
+            throw new Error(
+              `No se pudo conectar con el servidor. Verifica que:\n` +
+              `1. El backend esté corriendo en ${this.baseUrl}\n` +
+              `2. No haya problemas de CORS\n` +
+              `3. La URL sea correcta`
+            );
+          }
+        }
+
+        throw fetchError;
+      }
+
+      console.log("GitHub Auth - Response status:", response.status, response.statusText);
+
+      if (!response.ok) {
+        let errorMessage = `Error del servidor (${response.status}): ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch {
+          try {
+            const errorText = await response.text();
+            if (errorText) {
+              errorMessage = errorText;
+            }
+          } catch {
+            // ignore if we can't parse the error
+          }
+        }
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      console.log("GitHub Auth - Response data:", data);
+
+      if (!data.success) {
         throw new Error(data.error || "GitHub authentication failed");
       }
 
@@ -231,6 +278,13 @@ class ApiClient {
     } catch (error) {
       console.error("GitHub Auth Error:", error);
       if (error instanceof Error) {
+        if (
+          error.message.includes("Failed to fetch") ||
+          error.message.includes("NetworkError") ||
+          error.message.includes("No se pudo conectar")
+        ) {
+          throw error;
+        }
         throw error;
       }
       throw new Error("An unexpected error occurred during GitHub authentication");
