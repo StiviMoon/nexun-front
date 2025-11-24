@@ -26,10 +26,12 @@ const RegisterPage = () => {
     authErrors, 
     isEmailSignUpLoading, 
     isGoogleLoading,
+    isGithubLoading,
     registerWithEmailPassword,
     clearAuthError,
     isRegisterPending,
-    isGoogleAuthPending
+    isGoogleAuthPending,
+    isGithubAuthPending
   } = useAuthWithQuery();
 
   const { formData, handleChange, handleSubmit, isSubmitDisabled } = useAuthForm({
@@ -53,7 +55,7 @@ const RegisterPage = () => {
     },
     errorKey: "signUp",
     isLoading: isEmailSignUpLoading || isRegisterPending,
-    otherLoading: isGoogleLoading || isGoogleAuthPending
+    otherLoading: isGoogleLoading || isGoogleAuthPending || isGithubLoading || isGithubAuthPending
   });
 
   const handleAgeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -74,14 +76,16 @@ const RegisterPage = () => {
     }
   };
 
-  const { handleGoogleSignIn } = useSocialAuth({
-    isLoading: isGoogleLoading || isGoogleAuthPending,
-    otherLoading: isEmailSignUpLoading || isRegisterPending
+  const { handleGoogleSignIn, handleGithubSignIn } = useSocialAuth({
+    isGoogleLoading: isGoogleLoading || isGoogleAuthPending,
+    isGithubLoading: isGithubLoading || isGithubAuthPending,
+    isBlocking: isEmailSignUpLoading || isRegisterPending
   });
 
   useEffect(() => {
     clearAuthError("signUp");
     clearAuthError("google");
+    clearAuthError("github");
   }, [clearAuthError]);
 
   const passwordsMatch = useMemo(() => {
@@ -91,7 +95,7 @@ const RegisterPage = () => {
     return formData.password === formData.confirmPassword;
   }, [formData.password, formData.confirmPassword]);
 
-  const errorMessage = authErrors.signUp ?? authErrors.google;
+  const errorMessage = authErrors.signUp ?? authErrors.google ?? authErrors.github;
 
   return (
     <AuthShell>
@@ -206,14 +210,14 @@ const RegisterPage = () => {
           <SocialAuthButton
             provider="google"
             onClick={handleGoogleSignIn}
-            disabled={isGoogleLoading || isEmailSignUpLoading || isGoogleAuthPending || isRegisterPending}
+            disabled={isGoogleLoading || isEmailSignUpLoading || isGoogleAuthPending || isRegisterPending || isGithubLoading || isGithubAuthPending}
             isLoading={isGoogleLoading || isGoogleAuthPending}
           />
           <SocialAuthButton
             provider="github"
-            onClick={() => {}}
-            disabled
-            className="opacity-70"
+            onClick={handleGithubSignIn}
+            disabled={isGithubLoading || isEmailSignUpLoading || isGithubAuthPending || isRegisterPending || isGoogleLoading || isGoogleAuthPending}
+            isLoading={isGithubLoading || isGithubAuthPending}
           />
         </div>
 

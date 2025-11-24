@@ -6,9 +6,9 @@ import { getAuth } from "firebase/auth";
 import { initializeApp, getApps } from "firebase/app";
 import { useAuthStore } from "@/utils/authStore";
 import { useVerifyToken, useLogout } from "./useAuthApi";
-import { exchangeCustomTokenForIdToken, signInWithGoogle as firebaseGoogleAuth } from "@/utils/auth/tokenService";
+import { exchangeCustomTokenForIdToken, signInWithGoogle as firebaseGoogleAuth, signInWithGithub as firebaseGithubAuth } from "@/utils/auth/tokenService";
 import { verifyPassword } from "@/utils/auth/firebaseAuthAPI";
-import { useLogin, useRegister, useGoogleAuth } from "./useAuthApi";
+import { useLogin, useRegister, useGoogleAuth, useGithubAuth } from "./useAuthApi";
 import { getReadableSignInError, getReadableSignUpError } from "@/utils/authErrors";
 
 // Minimal Firebase config for auth state listener
@@ -37,6 +37,7 @@ export const useAuthWithQuery = () => {
   const isEmailSignInLoading = useAuthStore((state) => state.isEmailSignInLoading);
   const isEmailSignUpLoading = useAuthStore((state) => state.isEmailSignUpLoading);
   const isGoogleLoading = useAuthStore((state) => state.isGoogleLoading);
+  const isGithubLoading = useAuthStore((state) => state.isGithubLoading);
   const isSignOutLoading = useAuthStore((state) => state.isSignOutLoading);
   const hasInitializedListener = useAuthStore((state) => state.hasInitializedListener);
   
@@ -49,6 +50,7 @@ export const useAuthWithQuery = () => {
   const setEmailSignInLoading = useAuthStore((state) => state.setEmailSignInLoading);
   const setEmailSignUpLoading = useAuthStore((state) => state.setEmailSignUpLoading);
   const setGoogleLoading = useAuthStore((state) => state.setGoogleLoading);
+  const setGithubLoading = useAuthStore((state) => state.setGithubLoading);
   const setSignOutLoading = useAuthStore((state) => state.setSignOutLoading);
 
   // React Query mutations
@@ -57,6 +59,7 @@ export const useAuthWithQuery = () => {
   const loginMutation = useLogin();
   const registerMutation = useRegister();
   const googleAuthMutation = useGoogleAuth();
+  const githubAuthMutation = useGithubAuth();
 
   // Inicializar listener de Firebase con React Query
   useEffect(() => {
@@ -100,6 +103,7 @@ export const useAuthWithQuery = () => {
     async (email: string, password: string) => {
       clearAuthError("signIn");
       clearAuthError("google");
+      clearAuthError("github");
       setEmailSignInLoading(true);
 
       try {
@@ -138,6 +142,7 @@ export const useAuthWithQuery = () => {
     async (firstName: string, lastName: string, email: string, password: string, age: number) => {
       clearAuthError("signUp");
       clearAuthError("google");
+      clearAuthError("github");
       setEmailSignUpLoading(true);
 
       try {
@@ -171,6 +176,7 @@ export const useAuthWithQuery = () => {
   // Google Auth mejorado con React Query
   const signInWithGoogle = useCallback(async () => {
     clearAuthError("google");
+    clearAuthError("github");
     clearAuthError("signIn");
     clearAuthError("signUp");
     setGoogleLoading(true);
@@ -190,6 +196,26 @@ export const useAuthWithQuery = () => {
       setGoogleLoading(false);
     }
   }, [googleAuthMutation, clearAuthError, setGoogleLoading, setCurrentUser, setAuthError]);
+
+  const signInWithGithub = useCallback(async () => {
+    clearAuthError("github");
+    clearAuthError("google");
+    clearAuthError("signIn");
+    clearAuthError("signUp");
+    setGithubLoading(true);
+
+    try {
+      const { idToken } = await firebaseGithubAuth();
+      const user = await githubAuthMutation.mutateAsync({ idToken });
+
+      setCurrentUser(user);
+    } catch (error) {
+      setAuthError("github", "No fue posible autenticarte con GitHub.");
+      throw error;
+    } finally {
+      setGithubLoading(false);
+    }
+  }, [githubAuthMutation, clearAuthError, setGithubLoading, setCurrentUser, setAuthError]);
 
   // Logout mejorado con React Query
   const signOutUser = useCallback(async () => {
@@ -224,12 +250,14 @@ export const useAuthWithQuery = () => {
     isEmailSignInLoading,
     isEmailSignUpLoading,
     isGoogleLoading,
+    isGithubLoading,
     isSignOutLoading,
 
     // Acciones mejoradas con React Query
     signInWithEmailPassword,
     registerWithEmailPassword,
     signInWithGoogle,
+    signInWithGithub,
     signOutUser,
 
     // Helpers
@@ -241,12 +269,14 @@ export const useAuthWithQuery = () => {
     isLoginPending: loginMutation.isPending,
     isRegisterPending: registerMutation.isPending,
     isGoogleAuthPending: googleAuthMutation.isPending,
+    isGithubAuthPending: githubAuthMutation.isPending,
     isLogoutPending: logoutMutation.isPending,
     
     // Objetos de mutación completos (para acceso avanzado)
     loginMutation,
     registerMutation,
     googleAuthMutation,
+    githubAuthMutation,
     logoutMutation,
     verifyTokenMutation,
   };

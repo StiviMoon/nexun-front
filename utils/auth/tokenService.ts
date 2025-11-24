@@ -1,5 +1,5 @@
 import { initializeApp, getApps, FirebaseApp } from "firebase/app";
-import { getAuth, signInWithCustomToken, signInWithPopup, GoogleAuthProvider, Auth, User } from "firebase/auth";
+import { getAuth, signInWithCustomToken, signInWithPopup, GoogleAuthProvider, GithubAuthProvider, Auth, User } from "firebase/auth";
 import { firebaseConfig } from "@/config/firebase";
 
 // Initialize Firebase only if not already initialized
@@ -57,6 +57,27 @@ export const signInWithGoogle = async (): Promise<{ idToken: string; user: User 
     };
   } catch {
     throw new Error("Failed to authenticate with Google");
+  }
+};
+
+/**
+ * Authenticate with GitHub and get ID token
+ */
+export const signInWithGithub = async (): Promise<{ idToken: string; user: User }> => {
+  try {
+    const firebaseAuth = getFirebaseAuth();
+    const githubProvider = new GithubAuthProvider();
+    githubProvider.addScope("user:email");
+
+    const userCredential = await signInWithPopup(firebaseAuth, githubProvider);
+    const idToken = await userCredential.user.getIdToken();
+
+    return {
+      idToken,
+      user: userCredential.user
+    };
+  } catch {
+    throw new Error("Failed to authenticate with GitHub");
   }
 };
 

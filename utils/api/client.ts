@@ -204,6 +204,39 @@ class ApiClient {
     }
   }
 
+  async githubAuth(idToken: string): Promise<AuthApiResponse> {
+    const url = `${this.baseUrl}/api/auth/github`;
+
+    if (!idToken || idToken.trim() === "") {
+      throw new Error("ID token is required for GitHub authentication");
+    }
+
+    const config: RequestInit = {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ idToken }),
+    };
+
+    try {
+      const response = await fetch(url, config);
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "GitHub authentication failed");
+      }
+
+      return data;
+    } catch (error) {
+      console.error("GitHub Auth Error:", error);
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error("An unexpected error occurred during GitHub authentication");
+    }
+  }
+
   async verifyToken(idToken?: string): Promise<AuthApiResponse> {
     // If idToken is provided, use it; otherwise get from Firebase
     const token = idToken || (await getIdToken());
