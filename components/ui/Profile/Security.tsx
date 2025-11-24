@@ -122,7 +122,7 @@ const Security: React.FC<SecurityProps> = ({ onChangePassword, isLoading, isProv
               <button
                 type="button"
                 onClick={() => setShowNewPassword(!showNewPassword)}
-                disabled={isGoogleUser}
+                disabled={isProviderLocked}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label={showNewPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
               >
@@ -146,13 +146,13 @@ const Security: React.FC<SecurityProps> = ({ onChangePassword, isLoading, isProv
                 onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
                 placeholder="ejemplo@gmail.com"
                 required
-                disabled={isGoogleUser}
+                disabled={isProviderLocked}
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 pr-12 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                disabled={isGoogleUser}
+                disabled={isProviderLocked}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label={showConfirmPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
               >
