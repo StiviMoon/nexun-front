@@ -6,15 +6,6 @@ import { VideoGrid } from '@/components/ui/Sala/VideoGrid';
 import { Sidebar } from '@/components/ui/Sala/Sidebar';
 import { ControlBar } from '@/components/ui/Sala/ControlBar';
 import { useMeetingRoom } from '@/hooks/useMeetingRoom';
-import { Participant } from '@/types/meetingRoom';
-
-// Mock data para pruebas
-const mockParticipants: Participant[] = [
-  { id: '1', name: 'Maniaco', isMuted: false, isCameraOff: false},
-  { id: '2', name: 'Bedon', isMuted: true, isCameraOff: true, isSpeaking: true },
-  { id: '3', name: 'Mono', isMuted: true, isCameraOff: false },
-  { id: '4', name: 'Daniels', isMuted: true, isCameraOff: true },
-];
 
 interface PageProps {
   params: { id: string };
@@ -23,9 +14,9 @@ interface PageProps {
 export default function SalaPage({ params }: PageProps) {
   const [currentTime, setCurrentTime] = useState('');
   const [meetingName, setMeetingName] = useState<string>('Nombre de la reunión');
-  const [participants, setParticipants] = useState<Participant[]>(mockParticipants);
 
   const {
+    participants,
     activeTab,
     setActiveTab,
     isMuted,
@@ -36,6 +27,7 @@ export default function SalaPage({ params }: PageProps) {
     leaveRoom,
     messages,
     sendMessage,
+    localVideoRef,
   } = useMeetingRoom({ roomId: params.id });
 
   // Actualizar hora cada segundo
@@ -61,9 +53,6 @@ export default function SalaPage({ params }: PageProps) {
       if (raw) {
         const payload = JSON.parse(raw);
         if (payload.title) setMeetingName(payload.title);
-        if (Array.isArray(payload.participants) && payload.participants.length > 0) {
-          setParticipants(payload.participants as Participant[]);
-        }
       }
     } catch (e) {
       // sessionStorage no disponible o JSON inválido
@@ -85,7 +74,8 @@ export default function SalaPage({ params }: PageProps) {
         <div className="flex-1 flex flex-col min-h-0 order-2 lg:order-1">
           <VideoGrid
             participants={participants}
-            activeSpeakerId={activeSpeakerId || (participants[0] && participants[0].id) || '1'}
+            activeSpeakerId={activeSpeakerId || (participants[0] && participants[0].id) || undefined}
+            localVideoRef={localVideoRef}
           />
         </div>
 
