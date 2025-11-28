@@ -1,18 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Bell } from 'lucide-react';
 import Image from 'next/image';
 import { JoinMeetingCard } from '@/components/ui/Reuniones/JoinMeetingCard';
 import { ScheduledMeetingsList } from '@/components/ui/Reuniones/ScheduleMeetingList';
 import { useMeetings } from '@/hooks/useMeetings';
 import { useAuthWithQuery } from '@/hooks/useAuthWithQuery';
+import { useVideoCall } from '@/app/hooks/useVideoCall';
 import { MediaStatus, ScheduledMeeting } from '@/types/meetings';
 import { AppLayout } from '@/components/ui/AppLayout';
 
 export default function ReunionesPage() {
   const [joiningMeetingId, setJoiningMeetingId] = useState<string | null>(null);
   const { currentUser } = useAuthWithQuery();
+  const router = useRouter();
+  const { connect, joinRoom, isConnected } = useVideoCall();
 
   const {
     scheduledMeetings,
@@ -21,12 +25,74 @@ export default function ReunionesPage() {
     isJoining,
   } = useMeetings();
 
-  const handleJoinWithCode = (codeOrUrl: string, mediaStatus: MediaStatus) => {
-    joinMeeting({
-      codeOrUrl,
-      withAudio: mediaStatus.micEnabled,
-      withVideo: mediaStatus.cameraEnabled,
-    });
+  // Conectar al servicio de video al montar
+  useEffect(() => {
+    if (!isConnected) {
+      connect().catch(console.error);
+    }
+  }, [connect, isConnected]);
+
+  const handleJoinWithCode = async (codeOrUrl: string, mediaStatus: MediaStatus) => {
+    // Extraer código de la URL si es un enlace completo
+    let roomId = codeOrUrl.trim();
+    
+    // Si está vacío, no hacer nada
+    if (!roomId) {
+      alert('Por favor ingresa un código de reunión');
+      return;
+    }
+    
+    // Si es una URL, extraer el ID de la sala
+    if (roomId.includes('/Sala/')) {
+      const match = roomId.match(/\/Sala\/([^/?]+)/);
+      if (match) {
+        roomId = match[1];
+      }
+    }
+
+    // Si es una URL completa, extraer el último segmento
+    if (roomId.includes('http')) {
+      try {
+        const url = new URL(roomId);
+        const pathParts = url.pathname.split('/');
+        roomId = pathParts[pathParts.length - 1];
+      } catch {
+        // Si no es una URL válida, usar el código tal cual
+      }
+    }
+
+    // Validar que el roomId no esté vacío después de procesar
+    if (!roomId || roomId.length === 0) {
+      alert('Código de reunión inválido. Por favor verifica el código e intenta nuevamente.');
+      return;
+    }
+
+    // Validar formato básico (debe tener al menos algunos caracteres)
+    if (roomId.length < 3) {
+      alert('El código de reunión parece ser demasiado corto. Por favor verifica el código.');
+      return;
+    }
+
+    console.log(`🚪 [UNIRSE] Intentando unirse a sala con código: ${roomId}`);
+
+    try {
+      // Unirse a la sala de video
+      if (!isConnected) {
+        console.log(`🔌 [UNIRSE] Conectando al servicio de video...`);
+        await connect();
+      }
+      
+      console.log(`📥 [UNIRSE] Uniéndose a la sala ${roomId}...`);
+      await joinRoom(roomId);
+      
+      console.log(`✅ [UNIRSE] Unido exitosamente, navegando a la sala...`);
+      // Navegar a la sala
+      router.push(`/Sala/${roomId}`);
+    } catch (err) {
+      console.error('❌ [UNIRSE] Error uniéndose a la reunión:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+      alert(`Error al unirse a la reunión: ${errorMessage}\n\nPor favor verifica que el código de la reunión sea correcto.`);
+    }
   };
 
   const handleJoinScheduled = (meeting: ScheduledMeeting) => {
@@ -79,7 +145,7 @@ export default function ReunionesPage() {
               referrerPolicy="no-referrer"
             />
           ) : (
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-purple-600 ring-2 ring-zinc-700" />
+            <div className="w-10 h-10 rounded-full bg-linear-to-br from-cyan-400 to-purple-600 ring-2 ring-zinc-700" />
           )}
         </div>
           </header>

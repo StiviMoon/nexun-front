@@ -2,15 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { Users, MessageSquare, X } from 'lucide-react';
-import { Participant, SidebarTab, ChatMessage } from '@/types/meetingRoom';
+import { Participant, SidebarTab } from '@/types/meetingRoom';
+import { ChatMessage } from '@/types/chat';
 import { ParticipantListItem } from './ParticipantListItem';
-
 interface SidebarProps {
   activeTab: SidebarTab;
   onTabChange: (tab: SidebarTab) => void;
   participants: Participant[];
   messages: ChatMessage[];
   onSendMessage: (content: string) => void;
+  currentUserId?: string;
 }
 
 export function Sidebar({
@@ -19,6 +20,7 @@ export function Sidebar({
   participants,
   messages,
   onSendMessage,
+  currentUserId,
 }: SidebarProps) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
@@ -88,7 +90,11 @@ export function Sidebar({
             ))}
           </div>
         ) : (
-          <ChatPanel messages={messages} onSendMessage={onSendMessage} />
+          <ChatPanel
+            messages={messages}
+            onSendMessage={onSendMessage}
+            currentUserId={currentUserId}
+          />
         )}
       </div>
     </>
@@ -160,9 +166,11 @@ export function Sidebar({
 function ChatPanel({
   messages,
   onSendMessage,
+  currentUserId,
 }: {
   messages: ChatMessage[];
   onSendMessage: (content: string) => void;
+  currentUserId?: string;
 }) {
   const [message, setMessage] = useState('');
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
@@ -181,61 +189,77 @@ function ChatPanel({
   }, [messages]);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-w-0">
       {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-2 min-h-0">
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
-            <p className="text-xs text-zinc-500 text-center">No hay mensajes aún</p>
+            <p className="text-xs text-zinc-500 text-center px-2">No hay mensajes aún</p>
           </div>
         ) : (
           <>
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className="flex flex-col items-end gap-1.5 px-2 py-2 rounded-lg hover:bg-zinc-900/30 transition-colors group"
-              >
-                <div className="flex items-center gap-2 w-full justify-end">
-                  <span className="text-xs text-zinc-500 font-medium">{msg.senderName}</span>
-                  <span className="text-xs text-zinc-500">
-                    {new Date(msg.timestamp).toLocaleTimeString('es-ES', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </span>
+            {messages.map((msg) => {
+              const isOwnMessage = currentUserId ? currentUserId === msg.senderId : false;
+
+              return (
+                <div
+                  key={msg.id}
+                  className={`flex flex-col gap-1 px-2 py-1.5 rounded-lg hover:bg-zinc-900/30 transition-colors min-w-0 ${
+                    isOwnMessage ? 'items-end' : 'items-start'
+                  }`}
+                >
+                  <div className={`flex items-center gap-1.5 w-full min-w-0 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
+                    <span className="text-xs text-zinc-500 font-medium truncate">
+                      {msg.senderName || `Usuario ${msg.senderId.slice(0, 8)}`}
+                    </span>
+                    <span className="text-xs text-zinc-500 shrink-0">
+                      {msg.timestamp instanceof Date 
+                        ? msg.timestamp.toLocaleTimeString('es-ES', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })
+                        : new Date(msg.timestamp).toLocaleTimeString('es-ES', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })
+                      }
+                    </span>
+                  </div>
+                  <div className={`bg-zinc-800 rounded-lg px-2.5 py-2 max-w-full w-auto shadow-sm ${
+                    isOwnMessage ? 'ml-auto' : 'mr-auto'
+                  }`}>
+                    <p className="text-xs text-white leading-relaxed whitespace-pre-wrap overflow-wrap-anywhere">
+                      {msg.content}
+                    </p>
+                  </div>
                 </div>
-                <div className="bg-zinc-800 rounded-lg px-3 py-2.5 max-w-[85%] ml-auto shadow-sm">
-                  <p className="text-sm text-white leading-relaxed whitespace-pre-wrap">{msg.content}</p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
             <div ref={messagesEndRef} />
           </>
         )}
       </div>
 
       {/* Input Form */}
-      <form onSubmit={handleSubmit} className="p-3 border-t border-zinc-800 bg-zinc-950">
-        <div className="flex flex-col gap-2">
-          <div className="flex items-end gap-2">
-            <input
-              name="message"
-              type="text"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Escribe un mensaje..."
-              className="flex-1 bg-zinc-800 rounded-lg px-3 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-transparent transition-all"
-              autoComplete="off"
-            />
-            <button
-              type="submit"
-              disabled={!message.trim()}
-              className="shrink-0 w-10 h-10 rounded-lg bg-purple-500 hover:bg-purple-600 disabled:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors shadow-sm"
-              aria-label="Enviar mensaje"
-            >
-              <MessageSquare className="w-4 h-4" />
-            </button>
-          </div>
+      <form onSubmit={handleSubmit} className="p-2 border-t border-zinc-800 bg-zinc-950 shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <input
+            name="message"
+            type="text"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Escribe un mensaje..."
+            className="flex-1 min-w-0 bg-zinc-800 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-transparent transition-all"
+            autoComplete="off"
+          />
+          <button
+            type="submit"
+            disabled={!message.trim()}
+            className="shrink-0 w-9 h-9 rounded-lg bg-purple-500 hover:bg-purple-600 disabled:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors shadow-sm"
+            aria-label="Enviar mensaje"
+          >
+            <MessageSquare className="w-4 h-4" />
+          </button>
         </div>
       </form>
     </div>

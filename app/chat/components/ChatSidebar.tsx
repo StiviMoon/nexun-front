@@ -96,6 +96,15 @@ export const ChatSidebar = ({
     if (!userId) return [];
 
     return rooms.filter((room) => {
+      const isVideoMeetingRoom =
+        room.metadata?.isVideoMeeting === true ||
+        typeof room.metadata?.videoRoomId === "string" ||
+        typeof room.videoRoomId === "string" ||
+        (typeof room.name === "string" && room.name.endsWith(" - Chat"));
+      if (isVideoMeetingRoom) {
+        return false;
+      }
+
       const matchesSearch =
         room.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         room.description?.toLowerCase().includes(searchQuery.toLowerCase());

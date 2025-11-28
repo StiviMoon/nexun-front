@@ -25,7 +25,7 @@ export function ControlBar({
   const handleLeave = () => {
     try {
       onLeave();
-    } catch (e) {
+    } catch {
       // ignore
     }
     // Redirigir a la página de abandonar
@@ -41,10 +41,10 @@ export function ControlBar({
       <button
         onClick={onToggleMute}
         className={`
-          p-4 rounded-full transition-colors
+          p-4 rounded-full transition-all duration-200
           ${isMuted
-            ? 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
-            : 'bg-zinc-800 text-white hover:bg-zinc-700'
+            ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30 border-2 border-red-500/50'
+            : 'bg-green-500/20 text-green-400 hover:bg-green-500/30 border-2 border-green-500/50'
           }
         `}
         title={isMuted ? 'Activar micrófono' : 'Silenciar'}
@@ -56,15 +56,19 @@ export function ControlBar({
       <button
         onClick={onToggleCamera}
         className={`
-          p-4 rounded-full transition-colors
+          p-4 rounded-full transition-all duration-200
           ${isCameraOff
-            ? 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
-            : 'bg-zinc-800 text-white hover:bg-zinc-700'
+            ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30 border-2 border-red-500/50'
+            : 'bg-green-500/20 text-green-400 hover:bg-green-500/30 border-2 border-green-500/50'
           }
         `}
         title={isCameraOff ? 'Activar cámara' : 'Desactivar cámara'}
       >
-        {isCameraOff ? <VideoOff className="w-6 h-6" /> : <Video className="w-6 h-6" />}
+        {isCameraOff ? (
+          <VideoOff className="w-6 h-6" />
+        ) : (
+          <Video className="w-6 h-6" />
+        )}
       </button>
 
       {/* Leave Button */}
