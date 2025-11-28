@@ -2,7 +2,8 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Participant, SidebarTab, ChatMessage } from '@/types/meetingRoom';
+import { Participant, SidebarTab } from '@/types/meetingRoom';
+import { ChatMessage } from '@/types/chat';
 
 interface UseMeetingRoomProps {
   roomId: string;
@@ -37,13 +38,15 @@ export function useMeetingRoom({ roomId }: UseMeetingRoomProps) {
   const sendMessage = useCallback((content: string) => {
     const newMessage: ChatMessage = {
       id: Date.now().toString(),
+      roomId,
       senderId: 'current-user',
       senderName: 'Tú',
       content,
       timestamp: new Date(),
+      type: 'text',
     };
     setMessages((prev) => [...prev, newMessage]);
-  }, []);
+  }, [roomId]);
 
   return {
     participants,

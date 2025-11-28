@@ -94,12 +94,16 @@ export class ChatService {
     // Only log socket errors if they have meaningful information
     this.socket.on("error", (error: unknown) => {
       // Only log if error has meaningful information
-      if (error && typeof error === "object" && Object.keys(error).length > 0) {
-        console.error("Socket error:", error);
+      if (error && typeof error === "object") {
+        const errorObj = error as Record<string, unknown>;
+        if (Object.keys(errorObj).length > 0) {
+          console.error("Socket error:", error);
+        }
+        // Silently ignore empty errors
       } else if (error && typeof error === "string" && error.length > 0) {
         console.error("Socket error:", error);
       }
-      // Silently ignore empty errors
+      // Silently ignore empty errors (no log)
     });
 
     // Listen for connection errors (more reliable than "error" event)

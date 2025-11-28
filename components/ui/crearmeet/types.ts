@@ -30,4 +30,6 @@ export interface ParticipantsSectionProps {
 export interface MeetingSummaryProps {
   formData: MeetingFormData;
   onCreateMeeting: () => void;
+  isCreating?: boolean;
+  isConnected?: boolean;
 }

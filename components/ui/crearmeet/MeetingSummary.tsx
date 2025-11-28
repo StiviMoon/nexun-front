@@ -6,7 +6,12 @@ import { Calendar, Clock, Users } from 'lucide-react';
 import { MeetingSummaryProps } from './types';
 import { redirect } from 'next/navigation';
 
-const MeetingSummary: React.FC<MeetingSummaryProps> = ({ formData, onCreateMeeting }) => {
+const MeetingSummary: React.FC<MeetingSummaryProps> = ({ 
+  formData, 
+  onCreateMeeting,
+  isCreating = false,
+  isConnected = false
+}) => {
   const formatDate = (dateString: string) => {
     if (!dateString) return 'No especificada';
     const date = new Date(dateString);
@@ -118,16 +123,16 @@ const MeetingSummary: React.FC<MeetingSummaryProps> = ({ formData, onCreateMeeti
       {/* Create Button */}
       <button
         onClick={onCreateMeeting}
-        disabled={!isFormValid()}
+        disabled={!isFormValid() || isCreating || !isConnected}
         className={`
           w-full mt-6 py-3 rounded-lg font-semibold text-white transition-all
-          ${isFormValid()
+          ${isFormValid() && !isCreating && isConnected
             ? 'bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 shadow-lg shadow-cyan-500/20'
             : 'bg-zinc-800 cursor-not-allowed opacity-50'
           }
         `}
       >
-        Crear Reunión
+        {isCreating ? 'Creando...' : !isConnected ? 'Conectando...' : 'Crear Reunión'}
       </button>
     </div>
   );
