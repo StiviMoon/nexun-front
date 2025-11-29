@@ -1,31 +1,3 @@
-/**
- * ===========================================
- * AUTH STATUS MODAL
- * ===========================================
- *
- * A modal component that displays authentication status feedback to the user.
- * It handles multiple async authentication states and ensures a minimum display time
- * to avoid flickering for fast operations.
- *
- * Features:
- * - Displays loading states for email sign-in, email sign-up, Google auth, and sign-out.
- * - Uses a minimum display duration to prevent flickering.
- * - Animates the modal appearance/disappearance.
- * - Fully accessible: uses aria-live for assertive announcements and sr-only for titles/descriptions.
- * - Works only in client-side rendering.
- *
- * Internal Logic:
- * - Uses `useAuthWithQuery` hook to track auth operations.
- * - Calculates modal content based on current loading/pending states.
- * - Ensures cleanup of timeouts and animation frames to prevent memory leaks.
- * - Automatically hides the modal after minimum display time.
- *
- * Usage:
- * ```tsx
- * <AuthStatusModal />
- * ```
- */
-
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -171,3 +143,4 @@ const AuthStatusModal = () => {
 };
 
 export default AuthStatusModal;
+

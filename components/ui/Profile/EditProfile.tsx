@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import { EditProfileProps } from './types';
 
-const EditProfile: React.FC<EditProfileProps> = ({ user, onUpdate, isLoading, isGoogleUser = false }) => {
+const EditProfile: React.FC<EditProfileProps> = ({ user, onUpdate, isLoading, isProviderLocked = false }) => {
   const [formData, setFormData] = useState({
     firstName: user.firstName || '',
     lastName: user.lastName || '',
@@ -123,10 +123,10 @@ const EditProfile: React.FC<EditProfileProps> = ({ user, onUpdate, isLoading, is
 
           {/* Form Fields - Lado Derecho */}
           <div className="flex-1 space-y-6">
-            {isGoogleUser && (
+            {isProviderLocked && (
               <div className="mb-4 p-4 bg-yellow-900/20 border border-yellow-700/50 rounded-lg">
                 <p className="text-yellow-400 text-sm">
-                  ⚠️ Los usuarios de Google no pueden editar su información de perfil.
+                  ⚠️ Los usuarios que se autentican con Google o GitHub no pueden editar su información de perfil desde Nexun.
                 </p>
               </div>
             )}
@@ -141,7 +141,7 @@ const EditProfile: React.FC<EditProfileProps> = ({ user, onUpdate, isLoading, is
                   value={formData.firstName}
                   onChange={(e) => handleChange('firstName', e.target.value)}
                   placeholder="John"
-                  disabled={isGoogleUser}
+                  disabled={isProviderLocked}
                   className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
@@ -156,7 +156,7 @@ const EditProfile: React.FC<EditProfileProps> = ({ user, onUpdate, isLoading, is
                   value={formData.lastName}
                   onChange={(e) => handleChange('lastName', e.target.value)}
                   placeholder="Doe"
-                  disabled={isGoogleUser}
+                  disabled={isProviderLocked}
                   className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
@@ -198,7 +198,7 @@ const EditProfile: React.FC<EditProfileProps> = ({ user, onUpdate, isLoading, is
                   placeholder="25"
                   min="15"
                   max="150"
-                  disabled={isGoogleUser}
+                  disabled={isProviderLocked}
                   className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 />
                 <p className="text-xs text-gray-400 mt-2">

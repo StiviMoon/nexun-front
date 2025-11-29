@@ -181,6 +181,28 @@ export const useGoogleAuth = () => {
   });
 };
 
+export const useGithubAuth = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ idToken }: { idToken: string }): Promise<UserProfile> => {
+      const response = await apiClient.githubAuth(idToken);
+
+      if (!response.success || !response.user) {
+        throw new Error(response.error || "Failed to authenticate with GitHub");
+      }
+
+      return response.user;
+    },
+    onSuccess: (user) => {
+      queryClient.setQueryData(authKeys.me(), user);
+    },
+    onError: () => {
+      queryClient.removeQueries({ queryKey: authKeys.me() });
+    },
+  });
+};
+
 /**
  * Hook para verificar token
  */

@@ -6,7 +6,6 @@ import { VideoGrid } from '@/components/ui/Sala/VideoGrid';
 import { Sidebar } from '@/components/ui/Sala/Sidebar';
 import { ControlBar } from '@/components/ui/Sala/ControlBar';
 import { useMeetingRoom } from '@/hooks/useMeetingRoom';
-import { Participant } from '@/types/meetingRoom';
 
 interface PageProps {
   params: { id: string };
@@ -14,15 +13,10 @@ interface PageProps {
 
 export default function SalaPage({ params }: PageProps) {
   const [currentTime, setCurrentTime] = useState('');
-  const [meetingName, setMeetingName] = useState('Nombre de la reunion');
-
-  // estado de participantes
-  const [participants, setParticipants] = useState<Participant[]>([]);
-
-  // estado del stream local
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [meetingName, setMeetingName] = useState<string>('Nombre de la reunión');
 
   const {
+    participants,
     activeTab,
     setActiveTab,
     isMuted,
@@ -33,9 +27,10 @@ export default function SalaPage({ params }: PageProps) {
     leaveRoom,
     messages,
     sendMessage,
+    localVideoRef,
   } = useMeetingRoom({ roomId: params.id });
 
-  // reloj
+  // Actualizar hora cada segundo
   useEffect(() => {
     const updateTime = () => {
       setCurrentTime(
@@ -51,59 +46,40 @@ export default function SalaPage({ params }: PageProps) {
     return () => clearInterval(interval);
   }, []);
 
-  // solicitar camara y microfono
   useEffect(() => {
-    navigator.mediaDevices
-      .getUserMedia({ video: true, audio: true })
-      .then(stream => {
-        setLocalStream(stream);
-      })
-      .catch(err => {
-        console.error('error al acceder a la camara/microfono:', err);
-      });
-  }, []);
-
-  // actualizar el participante local
-  useEffect(() => {
-    setParticipants(prev => {
-      const others = prev.filter(p => p.id !== 'local-user');
-
-      return [
-        {
-          id: 'local-user',
-          name: 'tu',
-          isMuted: isMuted,
-          isCameraOff: isCameraOff,
-          isHost: true,
-          stream: localStream || undefined,
-        },
-        ...others,
-      ];
-    });
-  }, [isMuted, isCameraOff, localStream]);
+    // Intentar leer datos creados desde la pantalla de creación de reunión
+    try {
+      const raw = sessionStorage.getItem(`meeting:${params.id}`);
+      if (raw) {
+        const payload = JSON.parse(raw);
+        if (payload.title) setMeetingName(payload.title);
+      }
+    } catch (e) {
+      // sessionStorage no disponible o JSON inválido
+    }
+  }, [params.id]);
 
   return (
     <div className="min-h-screen flex flex-col bg-zinc-900">
       {/* Header */}
       <MeetingHeader
         meetingName={meetingName}
-        meetingCode={params.id}
+        meetingCode="ID REUNIÓN"
         currentTime={currentTime}
       />
 
-      {/* Main */}
+      {/* Main Content - Responsive Layout */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
-        
-        {/* zona de video */}
+        {/* Video Area - Full width on mobile, flex-1 on desktop */}
         <div className="flex-1 flex flex-col min-h-0 order-2 lg:order-1">
           <VideoGrid
             participants={participants}
-            activeSpeakerId={activeSpeakerId || 'local-user'}
-            localStream={localStream}
+            activeSpeakerId={activeSpeakerId || (participants[0] && participants[0].id) || undefined}
+            localVideoRef={localVideoRef}
           />
         </div>
 
-        {/* sidebar escritorio */}
+        {/* Right column: Sidebar + ControlBar - Hidden on mobile, shown on desktop */}
         <div className="hidden lg:flex w-64 flex-col min-h-0 order-1 lg:order-2">
           <div className="flex-1 min-h-0 overflow-auto">
             <Sidebar
@@ -127,7 +103,7 @@ export default function SalaPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* barra inferior mobile */}
+      {/* Mobile Bottom Bar - ControlBar always visible on mobile */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-zinc-950 border-t border-zinc-800">
         <ControlBar
           isMuted={isMuted}
@@ -138,7 +114,7 @@ export default function SalaPage({ params }: PageProps) {
         />
       </div>
 
-      {/* sidebar mobile */}
+      {/* Mobile Sidebar - Slide out from right */}
       <div className="lg:hidden">
         <Sidebar
           activeTab={activeTab}

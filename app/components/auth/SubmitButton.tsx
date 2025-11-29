@@ -1,31 +1,3 @@
-/**
- * ===========================================
- * SUBMIT BUTTON COMPONENT
- * ===========================================
- *
- * A reusable submit button component for forms.
- * Handles loading and disabled states and includes a right-arrow icon.
- *
- * Props:
- * typedef {Object} SubmitButtonProps
- * property {string} label - The text displayed on the button.
- * property {boolean} [isLoading=false] - Whether the button shows a loading spinner.
- * property {boolean} [disabled=false] - Whether the button is disabled.
- * property {string} [className] - Additional CSS classes for custom styling.
- *
- * Accessibility:
- * - Uses `aria-label` to describe the button's action.
- * - Uses `aria-disabled` and `aria-busy` to indicate state.
- *
- * Usage:
- * ```tsx
- * <SubmitButton
- *   label="Sign In"
- *   isLoading={isSubmitting}
- *   disabled={!isFormValid}
- * />
- * ```
- */
 "use client";
 
 import { ArrowRight } from "lucide-react";
@@ -65,3 +37,4 @@ const SubmitButton = ({ label, isLoading = false, disabled = false, className }:
 };
 
 export default SubmitButton;
+

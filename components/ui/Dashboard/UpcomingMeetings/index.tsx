@@ -1,19 +1,10 @@
+// components/Dashboard/UpcomingMeetings/index.tsx
 'use client';
 
 import React from 'react';
 import MeetingCard from './MeetingCard';
 import { UpcomingMeetingsProps } from '../types';
 
-/**
- * UpcomingMeetings Component
- * --------------------------
- * Displays a list of upcoming meetings.
- * Filters the meetings by status 'upcoming' and renders a MeetingCard for each.
- * Shows a placeholder message if there are no upcoming meetings.
- * 
- * @param {UpcomingMeetingsProps} props - Component props
- * @param {Array} props.meetings - Array of meeting objects
- */
 const UpcomingMeetings: React.FC<UpcomingMeetingsProps> = ({ meetings }) => {
   const upcomingMeetings = meetings.filter(m => m.status === 'upcoming');
 
@@ -39,7 +30,7 @@ const UpcomingMeetings: React.FC<UpcomingMeetingsProps> = ({ meetings }) => {
             meeting={meeting}
             onEnter={(meetingId) => {
               console.log('Entering meeting:', meetingId);
-              // Add logic to enter the meeting here
+              // Aquí puedes agregar la lógica para entrar a la reunión
             }}
           />
         ))}

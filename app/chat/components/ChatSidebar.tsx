@@ -1,29 +1,5 @@
 "use client";
 
-/** 
- * ChatRoom Component
- * -------------------
- * This component renders a complete chat room interface including:
- * - Room header with title, privacy indicators, creator-only access code controls.
- * - Scrollable message list.
- * - Message input for sending new messages.
- *
- * It is designed for real-time chat behavior and integrates with external message
- * handlers, authentication context, and UI elements.
- *
- * Key responsibilities:
- * - Display chat metadata such as room name, description, visibility, and lock icons.
- * - Allow the creator of a private room to reveal, hide, and copy the room’s access code.
- * - Render messages inside a controlled scroll container.
- * - Handle new message submissions and connection states.
- * - Provide a close button to exit the chat room view.
- *
- * Accessibility considerations:
- * - All interactive elements include ARIA labels.
- * - Hidden/revealed access code toggles provide screen-reader friendly descriptions.
- * - Buttons use visual feedback and icon replacement to improve clarity.
- */
-
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { ChatRoom } from "@/types/chat";
 import { Input } from "@/components/ui/input";
@@ -32,22 +8,6 @@ import { UserStatus } from "./UserStatus";
 import { Plus, Search, MessageSquare, X, Lock, Globe, Copy, Check } from "lucide-react";
 import { useAuthWithQuery } from "@/hooks/useAuthWithQuery";
 import { cn } from "@/lib/utils";
-
-/** 
- * ChatRoomProps Interface
- * -----------------------
- * Defines the structure of all required and optional properties used by the ChatRoom component.
- *
- * Properties:
- * - room:           Chat room metadata, including name, description, visibility, creator, and access code.
- * - messages:       Array of chat messages to display.
- * - isConnected:    Indicates whether the websocket/server connection is active.
- * - isSending:      Indicates whether a message is currently being processed.
- * - onSendMessage:  Function triggered when the user submits a new message.
- * - onClose:        Function invoked when the user closes/exits the chat room.
- * - currentUserId:  Optional ID of the logged-in user to identify message ownership and creator permissions.
- * - className:      Optional additional class names for layout styling.
- */
 
 interface ChatSidebarProps {
   rooms: ChatRoom[];
@@ -79,7 +39,7 @@ export const ChatSidebar = ({
   className
 }: ChatSidebarProps) => {
   const { currentUser } = useAuthWithQuery();
-  // Use currentUserId from prop or from the hook
+  // Usar currentUserId del prop o del hook
   const userId = currentUserId || currentUser?.uid;
   
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -105,23 +65,24 @@ export const ChatSidebar = ({
     }
   });
 
-  // Look for newly created private room code
-  // Only run when a new room was created by the current user
+  // Buscar código de sala privada recién creada
+  // Solo busca cuando hay una sala nueva creada por el usuario actual
   useEffect(() => {
     if (!pendingPrivateCreation || createdRoomCode || !userId) return;
-    // Find newly created private room that contains a code
+
+    // Buscar sala privada recién creada con código
     const privateRoomWithCode = rooms.find(
       (r) =>
         r.visibility === "private" &&
         r.code &&
         r.createdBy === userId &&
         r.id !== lastCreatedRoomId &&
-        // Room created in the last 15 seconds
+        // Sala creada en los últimos 15 segundos
         new Date(r.createdAt).getTime() > Date.now() - 15000
     );
 
     if (privateRoomWithCode?.code) {
-      // Use setTimeout to avoid setting state directly inside the effect
+      // Usar setTimeout para evitar setState en efecto directo
       setTimeout(() => {
         setCreatedRoomCode(privateRoomWithCode.code || null);
         setLastCreatedRoomId(privateRoomWithCode.id);
@@ -130,21 +91,30 @@ export const ChatSidebar = ({
     }
   }, [rooms, pendingPrivateCreation, createdRoomCode, userId, lastCreatedRoomId]);
 
-  // Filter rooms: show public rooms (all) and private rooms the user belongs to
+  // Filtrar salas: mostrar públicas (todas) y privadas a las que el usuario pertenece
   const filteredRooms = useMemo(() => {
     if (!userId) return [];
 
     return rooms.filter((room) => {
+      const isVideoMeetingRoom =
+        room.metadata?.isVideoMeeting === true ||
+        typeof room.metadata?.videoRoomId === "string" ||
+        typeof room.videoRoomId === "string" ||
+        (typeof room.name === "string" && room.name.endsWith(" - Chat"));
+      if (isVideoMeetingRoom) {
+        return false;
+      }
+
       const matchesSearch =
         room.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         room.description?.toLowerCase().includes(searchQuery.toLowerCase());
 
       if (!matchesSearch) return false;
 
-      // Always show public rooms (so everyone can join)
+      // Mostrar salas públicas siempre (para que todos puedan unirse)
       if (room.visibility === "public") return true;
 
-      // Show private rooms only if the user is a participant
+      // Mostrar salas privadas solo si el usuario es participante
       if (room.visibility === "private") {
         return room.participants.includes(userId);
       }
@@ -160,7 +130,7 @@ export const ChatSidebar = ({
 
     const isPrivate = roomVisibility === "private";
 
-    // If it's private, mark that we're waiting for the access code
+    // Si es privada, marcar que estamos esperando el código
     if (isPrivate) {
       setPendingPrivateCreation(true);
     }
@@ -172,14 +142,14 @@ export const ChatSidebar = ({
       visibility: roomVisibility,
     });
 
-    // Clear fields only when the room is public
+    // Limpiar campos solo si es pública
     if (!isPrivate) {
       setRoomName("");
       setRoomDescription("");
       setRoomVisibility("public");
       setShowCreateForm(false);
     }
-    // If it's private, keep the form open to display the generated code
+    // Si es privada, mantenemos el formulario abierto para mostrar el código
   }, [roomName, roomVisibility, roomType, roomDescription, isConnected, onCreateRoom]);
 
   const handleJoinWithCode = useCallback(() => {
@@ -191,13 +161,6 @@ export const ChatSidebar = ({
     setShowJoinForm(false);
   }, [joinCode, isConnected, onJoinWithCode]);
 
-  /**
-   * handleCopyCode
-   * ---------------
-   * Copies the private room access code to the clipboard.
-   * - Sets a temporary success state (codeCopied) for visual feedback.
-   * - Handles clipboard errors gracefully.
-   */
   const copyCodeToClipboard = useCallback(() => {
     if (createdRoomCode) {
       navigator.clipboard
@@ -243,10 +206,10 @@ export const ChatSidebar = ({
     }
   }, [showJoinForm]);
 
-  // Reset state when the create room form is closed
+  // Resetear estado cuando se cierra el formulario de creación
   useEffect(() => {
     if (!showCreateForm) {
-      // Reset after a small delay to allow the closing animation to finish
+      // Resetear después de un pequeño delay para permitir la animación
       const timer = setTimeout(() => {
         setCreatedRoomCode(null);
         setCodeCopied(false);
@@ -388,7 +351,7 @@ export const ChatSidebar = ({
             placeholder="Código de acceso"
             value={joinCode}
             onChange={(e) => {
-              // Only allow alphanumeric characters and convert to uppercase
+              // Solo permitir caracteres alfanuméricos y convertir a mayúsculas
               const value = e.target.value.replace(/[^A-Z0-9]/gi, "").toUpperCase();
               setJoinCode(value);
             }}
@@ -473,13 +436,7 @@ export const ChatSidebar = ({
             </div>
           </div>
 
-          {/**
-           * toggleShowCode
-           * ---------------
-           * Toggles whether the private access code is visible.
-           * Only available to the room creator in private rooms.
-           */}
-          {/* Show generated code */}
+          {/* Mostrar código generado */}
           {createdRoomCode && (
             <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20">
               <p className="text-xs text-purple-400 mb-1.5">Código de acceso:</p>

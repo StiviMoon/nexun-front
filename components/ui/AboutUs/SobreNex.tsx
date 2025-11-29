@@ -1,13 +1,5 @@
 import { Star, ThumbsUp, Users, MessageSquare, Video, Globe, Wifi } from 'lucide-react';
 
-/**
- * SobreNexun Component
- *
- * This component renders the "About Nexun" page, including the company's mission,
- * offerings, and key features in a visually structured layout with icons.
- *
- * returns {JSX.Element} A React component displaying information about Nexun
- */
 export default function SobreNexun() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-8">

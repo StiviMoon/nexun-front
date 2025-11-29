@@ -1,15 +1,3 @@
-/**
- * #documentacion
- * MeetingLeftPage Component
- * 
- * This component renders the page displayed when a meeting has been left.
- * It includes a header with a logo linking back to the dashboard and loads
- * the `MeetingLeftClient` component using React Suspense.
- *
- * component
- * returns {JSX.Element} The layout for the "Meeting Left" page.
- */
-
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -36,7 +24,6 @@ export default function MeetingLeftPage() {
       <React.Suspense fallback={null}>
         <MeetingLeftClient />
       </React.Suspense>
-    </div>
+      </div>
   );
 }
-

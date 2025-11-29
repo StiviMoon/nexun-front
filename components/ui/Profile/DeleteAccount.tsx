@@ -1,34 +1,20 @@
+// components/Profile/DeleteAccount.tsx
 'use client';
 
 import React, { useState } from 'react';
 import { Trash2, Eye, EyeOff } from 'lucide-react';
 
 interface DeleteAccountProps {
-  /**
-   * Function called when the user confirms account deletion.
-   * Receives the user's password as an argument and should return a promise.
-   */
   onDelete: (password: string) => Promise<void>;
-  /** Indicates whether the deletion process is in progress */
   isLoading: boolean;
 }
 
-/**
- * DeleteAccount Component
- * -----------------------
- * Provides a UI to securely delete a user's account.
- * Includes confirmation input, password input, error handling, and action buttons.
- */
 const DeleteAccount: React.FC<DeleteAccountProps> = ({ onDelete, isLoading }) => {
   const [confirmText, setConfirmText] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  /**
-   * Handle the account deletion process.
-   * Validates the confirmation text and password before calling onDelete.
-   */
   const handleDelete = async () => {
     setError('');
 
@@ -49,9 +35,6 @@ const DeleteAccount: React.FC<DeleteAccountProps> = ({ onDelete, isLoading }) =>
     }
   };
 
-  /**
-   * Reset all inputs and errors when the user cancels the deletion process.
-   */
   const handleCancel = () => {
     setConfirmText('');
     setPassword('');
@@ -77,7 +60,6 @@ const DeleteAccount: React.FC<DeleteAccountProps> = ({ onDelete, isLoading }) =>
 
       {/* Info Section */}
       <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8">
-        {/* Consequences */}
         <div className="mb-6">
           <p className="text-white font-medium mb-4">Al eliminar tu cuenta:</p>
           <ul className="space-y-2 text-gray-300 text-sm">
@@ -112,7 +94,9 @@ const DeleteAccount: React.FC<DeleteAccountProps> = ({ onDelete, isLoading }) =>
 
         {/* Password Input */}
         <div className="mb-6">
-          <p className="text-white text-sm mb-3">Ingresa tu contraseña</p>
+          <p className="text-white text-sm mb-3">
+            Ingresa tu contraseña
+          </p>
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}

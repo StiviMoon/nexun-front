@@ -6,19 +6,10 @@ import { MeetingHistory } from '@/types/meetings';
 import { formatHistoryDate } from '@/utils/meet/dataFormatters';
 
 interface MeetingHistoryItemProps {
-  /** Meeting history object containing details of the meeting */
   meeting: MeetingHistory;
-  /** Optional callback when the item is clicked */
   onClick?: (meeting: MeetingHistory) => void;
 }
 
-/**
- * MeetingHistoryItem
- * ------------------
- * Component for rendering a single meeting history item.
- * Shows host avatar (or placeholder), title, and formatted date.
- * Clickable if onClick is provided.
- */
 export function MeetingHistoryItem({ meeting, onClick }: MeetingHistoryItemProps) {
   return (
     <div

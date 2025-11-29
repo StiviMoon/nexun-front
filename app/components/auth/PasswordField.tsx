@@ -1,37 +1,3 @@
-/**
- * ===========================================
- * PASSWORD FIELD COMPONENT
- * ===========================================
- *
- * A reusable password input field with toggle visibility functionality.
- * It combines a label, input, and a button to show/hide the password.
- *
- * Main responsibilities:
- * - Display a label for the password input field.
- * - Render a password input element with optional validation styling.
- * - Allow the user to toggle password visibility.
- * - Support accessibility with proper aria-labels.
- * - Integrate seamlessly with form layouts and other UI components.
- *
- * Props:
- * typedef {Object} PasswordFieldProps
- * property {string} id - Unique identifier for the input field.
- * property {string} label - Label text displayed above the input.
- * property {string} [name] - Name attribute of the input element.
- * property {string} value - Current value of the input.
- * property {(event: ChangeEvent<HTMLInputElement>) => void} onChange - Change event handler.
- * property {string} [placeholder="••••••••"] - Placeholder text displayed inside the input.
- * property {string} [autoComplete="current-password"] - Browser autocomplete attribute.
- * property {boolean} [required=false] - Marks the field as required.
- * property {string} [className] - Additional CSS classes for customization.
- * property {boolean} [isValid] - Optional validation state to show success or error styling.
- *
- * Usage Notes:
- * - Useful in authentication forms (login, registration, password update).
- * - Integrates with Input, Label, and Button UI components.
- * - Automatically updates border color based on `isValid` prop.
- */
-
 "use client";
 
 import { ChangeEvent, useState } from "react";
@@ -117,3 +83,4 @@ const PasswordField = ({
 };
 
 export default PasswordField;
+

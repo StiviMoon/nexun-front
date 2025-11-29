@@ -34,14 +34,6 @@ interface UseChatReturn {
   setCurrentRoom: (room: ChatRoom | null) => void;
 }
 
-/**
- * Custom hook for managing real-time chat functionality.
- * Handles connection, rooms, messages, and user interactions with a chat server.
- * Uses a ChatService instance and Zustand store for state management.
- * 
- * param {boolean} useGateway - Optional flag to use a gateway connection instead of direct socket.
- * returns {UseChatReturn} - An object containing chat state and actions.
- */
 export const useChat = (useGateway = false): UseChatReturn => {
   const chatServiceRef = useRef<ChatService | null>(null);
   const listenersRegisteredRef = useRef(false);
@@ -60,20 +52,12 @@ export const useChat = (useGateway = false): UseChatReturn => {
   const setConnecting = useChatStore((state) => state.setConnecting);
   const setError = useChatStore((state) => state.setError);
   const reset = useChatStore((state) => state.reset);
-
-  /** 
-   * Computes the currently active chat room based on currentRoomId.
-   */
   const currentRoom = useMemo(
     () => rooms.find((room) => room.id === currentRoomId) || null,
     [rooms, currentRoomId]
   );
 
-  /**
-   * Connects to the chat server via ChatService.
-   * Registers all event listeners if not already registered.
-   * Handles connection errors and updates state accordingly.
-   */
+  // Connect to Socket.IO server using ChatService
   const connect = useCallback(async () => {
     if (chatServiceRef.current?.isConnected()) {
       return;
@@ -98,13 +82,22 @@ export const useChat = (useGateway = false): UseChatReturn => {
         });
 
         chatService.onMessage((message: ChatMessage) => {
-          console.log("💬 New message:", message);
+          console.log("💬 [CHAT] Nuevo mensaje recibido:", {
+            id: message.id,
+            roomId: message.roomId,
+            senderId: message.senderId,
+            content: message.content?.substring(0, 50),
+            timestamp: message.timestamp
+          });
           addMessage(message);
+          console.log("✅ [CHAT] Mensaje agregado al store");
         });
 
         chatService.onRoomJoined((data: { roomId: string; room: ChatRoom }) => {
           console.log("✅ Joined room:", data.roomId);
+          // Actualizar la sala con los nuevos participantes (incluyendo al usuario actual)
           upsertRoom(data.room);
+          // Si esta es la sala actual, actualizar también
           const { currentRoomId } = useChatStore.getState();
           if (currentRoomId === data.roomId) {
             setCurrentRoomId(data.room.id);
@@ -144,6 +137,7 @@ export const useChat = (useGateway = false): UseChatReturn => {
         });
 
         chatService.onError((err: { message: string; code?: string }) => {
+          // Only set error if it has meaningful information
           if (err && err.message && err.message.length > 0) {
             console.error("Chat error:", err);
             setError({
@@ -156,7 +150,8 @@ export const useChat = (useGateway = false): UseChatReturn => {
         listenersRegisteredRef.current = true;
       }
 
-      // Socket connection event listeners
+      // Register socket connection events (only once, not inside listenersRegistered check)
+      // These need to be registered each time socket is created
       socket.on("connect", () => {
         console.log("✅ Connected to chat server");
         setConnected(true);
@@ -173,12 +168,14 @@ export const useChat = (useGateway = false): UseChatReturn => {
         console.log("❌ Disconnected from chat server:", reason);
         setConnected(false);
         setConnecting(false);
+        // Don't set error on disconnect, it's normal
       });
 
       socket.on("connect_error", (err) => {
         console.error("Connection error:", err.message || err);
         setConnecting(false);
 
+        // Only set error if it's not a timeout (timeouts are handled by reconnection)
         if (!err.message?.includes("timeout") && !err.message?.includes("xhr poll error")) {
           if (err.message?.includes("auth") || err.message?.includes("unauthorized")) {
             setError({
@@ -213,9 +210,7 @@ export const useChat = (useGateway = false): UseChatReturn => {
     setError
   ]);
 
-  /**
-   * Disconnects from the chat server and resets store state.
-   */
+  // Disconnect from server
   const disconnect = useCallback(() => {
     if (chatServiceRef.current) {
       chatServiceRef.current.disconnect();
@@ -225,11 +220,7 @@ export const useChat = (useGateway = false): UseChatReturn => {
     reset();
   }, [reset]);
 
-  /**
-   * Joins a chat room by ID with an optional code for private rooms.
-   * param roomId - ID of the room to join.
-   * param code - Optional code for private room access.
-   */
+  // Join a room (with optional code for private rooms)
   const joinRoom = useCallback(
     (roomId: string, code?: string) => {
       if (!chatServiceRef.current?.isConnected()) {
@@ -239,7 +230,7 @@ export const useChat = (useGateway = false): UseChatReturn => {
 
       try {
         chatServiceRef.current.joinRoom(roomId, code);
-        setCurrentRoomId(roomId);
+        setCurrentRoomId(roomId); // Set current room in store
       } catch (err) {
         setError({
           message: err instanceof Error ? err.message : "Failed to join room",
@@ -250,10 +241,7 @@ export const useChat = (useGateway = false): UseChatReturn => {
     [setError, setCurrentRoomId]
   );
 
-  /**
-   * Joins a chat room using a room code.
-   * param code - Code for the room to join.
-   */
+  // Join a room by code only (searches for room with that code)
   const joinRoomByCode = useCallback(
     (code: string) => {
       if (!chatServiceRef.current?.isConnected()) {
@@ -281,10 +269,7 @@ export const useChat = (useGateway = false): UseChatReturn => {
     [setError]
   );
 
-  /**
-   * Leaves a chat room by ID.
-   * param roomId - ID of the room to leave.
-   */
+  // Leave a room
   const leaveRoom = useCallback(
     (roomId: string) => {
       if (!chatServiceRef.current?.isConnected()) {
@@ -294,18 +279,14 @@ export const useChat = (useGateway = false): UseChatReturn => {
       try {
         chatServiceRef.current.leaveRoom(roomId);
       } catch (err) {
+        // Silently fail on leave
         console.error("Failed to leave room:", err);
       }
     },
     []
   );
 
-  /**
-   * Sends a message to a specific room.
-   * param roomId - ID of the room.
-   * param content - Message content.
-   * param type - Type of message: text, image, or file.
-   */
+  // Send a message
   const sendMessage = useCallback(
     (roomId: string, content: string, type: "text" | "image" | "file" = "text") => {
       if (!chatServiceRef.current?.isConnected()) {
@@ -329,10 +310,7 @@ export const useChat = (useGateway = false): UseChatReturn => {
     [setError]
   );
 
-  /**
-   * Creates a new chat room.
-   * param data - Room creation data including name, type, visibility, etc.
-   */
+  // Create a room
   const createRoom = useCallback(
     (data: CreateRoomData) => {
       if (!chatServiceRef.current?.isConnected()) {
@@ -340,6 +318,7 @@ export const useChat = (useGateway = false): UseChatReturn => {
         return;
       }
 
+      // Validate required fields
       if (!data.name || !data.type || !data.visibility) {
         setError({
           message: "Nombre, tipo y visibilidad son requeridos",
@@ -366,10 +345,7 @@ export const useChat = (useGateway = false): UseChatReturn => {
     [setError]
   );
 
-  /**
-   * Retrieves details of a specific room.
-   * param roomId - ID of the room.
-   */
+  // Get room details
   const getRoom = useCallback(
     (roomId: string) => {
       if (!chatServiceRef.current?.isConnected()) {
@@ -389,12 +365,7 @@ export const useChat = (useGateway = false): UseChatReturn => {
     [setError]
   );
 
-  /**
-   * Retrieves messages for a room with optional pagination.
-   * param roomId - ID of the room.
-   * param limit - Number of messages to retrieve (default 50).
-   * param lastMessageId - ID of the last message to start pagination.
-   */
+  // Get messages for a room
   const getMessages = useCallback(
     (roomId: string, limit = 50, lastMessageId?: string) => {
       if (!chatServiceRef.current?.isConnected()) {
@@ -421,10 +392,6 @@ export const useChat = (useGateway = false): UseChatReturn => {
     };
   }, [disconnect]);
 
-  /**
-   * Updates the current active room in the store.
-   * param room - Room object or null to clear current room.
-   */
   const updateCurrentRoom = useCallback(
     (room: ChatRoom | null) => {
       setCurrentRoomId(room?.id ?? null);
@@ -451,3 +418,4 @@ export const useChat = (useGateway = false): UseChatReturn => {
     setCurrentRoom: updateCurrentRoom
   };
 };
+

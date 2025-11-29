@@ -5,21 +5,12 @@ import { MeetingHistoryItem } from './MeetingHistoryItem';
 import { History, Loader2, SearchX } from 'lucide-react';
 
 interface MeetingHistoryListProps {
-  /** Array of meeting history items to display */
   meetings: MeetingHistory[];
-  /** Indicates if the history is currently loading */
   isLoading?: boolean;
-  /** Indicates if a search is active but returned no results */
   isSearching?: boolean;
-  /** Optional callback when a meeting item is clicked */
   onMeetingClick?: (meeting: MeetingHistory) => void;
 }
 
-/**
- * MeetingHistoryList
- * -----------------
- * Renders a list of previous meetings with states for loading, empty, and search results.
- */
 export function MeetingHistoryList({
   meetings,
   isLoading = false,
@@ -51,11 +42,6 @@ export function MeetingHistoryList({
   );
 }
 
-/**
- * LoadingState
- * ------------
- * Displays a loader while the meeting history is being fetched.
- */
 function LoadingState() {
   return (
     <div className="flex items-center justify-center py-16 text-zinc-500">
@@ -65,11 +51,6 @@ function LoadingState() {
   );
 }
 
-/**
- * EmptyState
- * ----------
- * Displays a placeholder when there are no previous meetings.
- */
 function EmptyState() {
   return (
     <div
@@ -87,11 +68,6 @@ function EmptyState() {
   );
 }
 
-/**
- * NoResultsState
- * --------------
- * Displays a placeholder when a search returns no results.
- */
 function NoResultsState() {
   return (
     <div

@@ -1,3 +1,4 @@
+// components/Dashboard/index.tsx
 'use client';
 
 import React from 'react';
@@ -14,16 +15,6 @@ interface DashboardProps {
   upcomingMeetings?: Meeting[];
 }
 
-/**
- * Dashboard component combines user header, quick actions, and upcoming meetings.
- *
- * param {DashboardProps} props - Props for Dashboard
- * param {string} props.userName - Name of the current user
- * param {string} [props.userAvatar] - Optional URL of user avatar
- * param {RecentMeeting[]} [props.recentMeetings] - Optional list of recent meetings
- * param {Meeting[]} [props.upcomingMeetings] - Optional list of upcoming meetings
- * returns {JSX.Element} Rendered Dashboard component
- */
 const Dashboard: React.FC<DashboardProps> = ({
   userName,
   userAvatar,
@@ -40,7 +31,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       icon: 'plus',
       onClick: () => {
         console.log('Iniciando reunión rápida...');
-        // router.push('/reunion-rapida'); // Navigate to quick meeting page
+        // router.push('/reunion-rapida');
       }
     },
     {
@@ -49,25 +40,18 @@ const Dashboard: React.FC<DashboardProps> = ({
       icon: 'link',
       onClick: () => {
         console.log('Unirse con código...');
-        // router.push('/unirse'); // Navigate to join meeting page
+        // router.push('/unirse');
       }
     }
   ];
 
   const handleNotificationClick = () => {
     console.log('Notificaciones clickeadas');
-    // Trigger notifications modal or navigate to notifications
+    // Aquí puedes abrir un modal o navegar a notificaciones
   };
 
   return (
     <div className="space-y-6">
-      {/* Dashboard Header */}
-      <DashboardHeader
-        userName={userName}
-        userAvatar={userAvatar}
-        onNotificationClick={handleNotificationClick}
-      />
-
       {/* Quick Actions */}
       <QuickActions
         actions={quickActions}

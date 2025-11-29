@@ -1,22 +1,10 @@
-'use client';
+"use client";
 
 import { useAuthWithQuery } from "@/hooks/useAuthWithQuery";
 
 /**
- * useAuth
- *
- * Hook de compatibilidad que envuelve `useAuthWithQuery`.
- * Proporciona la misma API que hooks antiguos para no romper código existente.
- *
- * returns {{
- *   currentUser: import('firebase/auth').User | null;
- *   isAuthInitializing: boolean;
- *   authErrors: Error[] | null;
- *   isEmailSignInLoading: boolean;
- *   isEmailSignUpLoading: boolean;
- *   isGoogleLoading: boolean;
- *   isSignOutLoading: boolean;
- * }}
+ * Hook de compatibilidad que usa useAuthWithQuery internamente
+ * Mantiene la misma API para compatibilidad con código existente
  */
 export const useAuth = () => {
   const {
@@ -41,17 +29,11 @@ export const useAuth = () => {
 };
 
 /**
- * useAuthAction
- *
- * Hook de compatibilidad para acceder a propiedades específicas del estado de autenticación.
- * 
- * @deprecated Usa `useAuthWithQuery` directamente para mejor integración con React Query.
- *
- * @template T
- * @param {(state: ReturnType<typeof useAuthWithQuery>) => T} selector - Función que selecciona la parte del estado que deseas.
- * @returns {T} El valor seleccionado del estado de autenticación.
+ * Hook de compatibilidad para acciones
+ * @deprecated Usa useAuthWithQuery directamente para mejor integración con React Query
  */
 export const useAuthAction = <T>(selector: (state: ReturnType<typeof useAuthWithQuery>) => T) => {
   const authState = useAuthWithQuery();
   return selector(authState);
 };
+

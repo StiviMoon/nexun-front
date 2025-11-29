@@ -1,25 +1,3 @@
-/**
- * ===========================================
- * DASHBOARD PAGE
- * ===========================================
- *
- * Page component that displays the user's dashboard.
- *
- * Features:
- * - Retrieves the currently authenticated user using `useAuthWithQuery`.
- * - Extracts user's display name, email, and avatar for passing to child components.
- * - Wraps content with `AppLayout` to provide consistent application layout.
- * - Uses `PageHeader` to display a personalized welcome message.
- * - Renders the `Dashboard` component for user actions, including recent and upcoming meetings.
- * - Handles client-side rendering; returns `null` if no user is authenticated.
- * - Provides flexible scrolling and responsive padding for content.
- *
- * Usage:
- * ```tsx
- * <DashboardPage />
- * ```
- */
-
 "use client";
 
 import { useAuthWithQuery } from "@/hooks/useAuthWithQuery";
@@ -30,7 +8,6 @@ import Dashboard from "@/components/ui/Dashboard";
 const DashboardPage = () => {
   const { currentUser } = useAuthWithQuery();
 
-  // Do not render if no authenticated user is found
   if (!currentUser) {
     return null;
   }
@@ -44,6 +21,7 @@ const DashboardPage = () => {
         {/* Header unificado */}
         <PageHeader
           title={`Bienvenido, ${userName.split(" ")[0]}`}
+          
         />
 
         {/* Contenido principal - Solo acciones rápidas */}

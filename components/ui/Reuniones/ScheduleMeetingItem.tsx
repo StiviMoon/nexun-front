@@ -4,30 +4,11 @@ import { ScheduledMeeting } from '@/types/meetings';
 import { formatMeetingDate, formatMeetingTime } from '@/utils/meet/dataFormatters';
 
 interface ScheduledMeetingItemProps {
-  /**
-   * The meeting object to display.
-   */
   meeting: ScheduledMeeting;
-
-  /**
-   * Callback function when the user clicks "Join".
-   * Receives the meeting object as a parameter.
-   */
   onJoin: (meeting: ScheduledMeeting) => void;
-
-  /**
-   * Whether the join action is currently in progress.
-   * Defaults to false.
-   */
   isJoining?: boolean;
 }
 
-/**
- * Displays a scheduled meeting item with title, date, time, and a "Join" button.
- *
- * param {ScheduledMeetingItemProps} props
- * returns JSX.Element
- */
 export function ScheduledMeetingItem({
   meeting,
   onJoin,

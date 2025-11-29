@@ -1,34 +1,3 @@
-/**
- * ===========================================
- * AUTH CARD COMPONENT
- * ===========================================
- *
- * A reusable card component for authentication-related pages, such as
- * login, registration, or password recovery forms. Provides a consistent
- * layout, branding, and styling for authentication interfaces.
- *
- * Main responsibilities:
- * - Display a brand logo badge at the top.
- * - Show a title and description.
- * - Render child content (e.g., forms, buttons) inside the card.
- * - Support custom styling via the `className` prop.
- *
- * Props:
- * typedef {Object} AuthCardProps
- * property {string} title - The main heading/title of the card.
- * property {string} description - A descriptive text displayed below the title.
- * property {ReactNode} children - Content to render inside the card, typically a form or buttons.
- * property {string} [className] - Optional additional classes for customizing card styles.
- *
- * BrandBadge:
- * - Renders the Nexun logo as a centered, rounded badge at the top of the card.
- * - Uses Next.js Image component with priority loading for better performance.
- *
- * Usage Notes:
- * - Designed for authentication pages to maintain consistent UI/UX.
- * - Supports responsive layouts and modern styling with backdrop blur and shadow.
- */
-
 "use client";
 
 import { ReactNode } from "react";
@@ -75,3 +44,4 @@ const AuthCard = ({ title, description, children, className }: AuthCardProps) =>
 };
 
 export default AuthCard;
+

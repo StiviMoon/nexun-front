@@ -1,39 +1,17 @@
-'use client';
+ 'use client';
 
 import { useRouter } from 'next/navigation';
 import { Mic, MicOff, Video, VideoOff, PhoneOff } from 'lucide-react';
 
 interface ControlBarProps {
-  /** Whether the microphone is muted */
   isMuted: boolean;
-
-  /** Whether the camera is off */
   isCameraOff: boolean;
-
-  /** Callback to toggle microphone */
   onToggleMute: () => void;
-
-  /** Callback to toggle camera */
   onToggleCamera: () => void;
-
-  /** Callback to leave the meeting */
   onLeave: () => void;
-
-  /** Optional room ID used for redirect after leaving */
   roomId?: string;
 }
 
-/**
- * A control bar component for in-meeting actions:
- * - Toggle microphone
- * - Toggle camera
- * - Leave meeting
- *
- * Handles redirecting to a leave/exit page using roomId if provided.
- *
- * param {ControlBarProps} props
- * returns JSX.Element
- */
 export function ControlBar({
   isMuted,
   isCameraOff,
@@ -47,27 +25,26 @@ export function ControlBar({
   const handleLeave = () => {
     try {
       onLeave();
-    } catch (e) {
+    } catch {
       // ignore
     }
-    // Redirect to leave page with optional room query
+    // Redirigir a la página de abandonar
     if (typeof roomId === 'string' && roomId.trim().length > 0 && roomId !== 'undefined' && roomId !== 'null') {
       router.push(`/abandonar?room=${encodeURIComponent(roomId)}`);
     } else {
       router.push('/abandonar');
     }
   };
-
   return (
     <div className="flex items-center justify-center gap-4 p-4 lg:gap-4 lg:p-4 bg-zinc-950 border-t border-zinc-800">
       {/* Mute Button */}
       <button
         onClick={onToggleMute}
         className={`
-          p-4 rounded-full transition-colors
+          p-4 rounded-full transition-all duration-200
           ${isMuted
-            ? 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
-            : 'bg-zinc-800 text-white hover:bg-zinc-700'
+            ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30 border-2 border-red-500/50'
+            : 'bg-green-500/20 text-green-400 hover:bg-green-500/30 border-2 border-green-500/50'
           }
         `}
         title={isMuted ? 'Activar micrófono' : 'Silenciar'}
@@ -79,15 +56,19 @@ export function ControlBar({
       <button
         onClick={onToggleCamera}
         className={`
-          p-4 rounded-full transition-colors
+          p-4 rounded-full transition-all duration-200
           ${isCameraOff
-            ? 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
-            : 'bg-zinc-800 text-white hover:bg-zinc-700'
+            ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30 border-2 border-red-500/50'
+            : 'bg-green-500/20 text-green-400 hover:bg-green-500/30 border-2 border-green-500/50'
           }
         `}
         title={isCameraOff ? 'Activar cámara' : 'Desactivar cámara'}
       >
-        {isCameraOff ? <VideoOff className="w-6 h-6" /> : <Video className="w-6 h-6" />}
+        {isCameraOff ? (
+          <VideoOff className="w-6 h-6" />
+        ) : (
+          <Video className="w-6 h-6" />
+        )}
       </button>
 
       {/* Leave Button */}

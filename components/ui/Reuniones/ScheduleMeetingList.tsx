@@ -4,37 +4,15 @@ import { ScheduledMeeting } from '@/types/meetings';
 import { ScheduledMeetingItem } from './ScheduleMeetingItem';
 import { Calendar, Loader2 } from 'lucide-react';
 
+
+
 interface ScheduledMeetingsListProps {
-  /**
-   * Array of scheduled meetings to display.
-   */
   meetings: ScheduledMeeting[];
-
-  /**
-   * Callback function when a meeting is joined.
-   * Receives the meeting object as parameter.
-   */
   onJoinMeeting: (meeting: ScheduledMeeting) => void;
-
-  /**
-   * Whether the meetings list is loading.
-   * Defaults to false.
-   */
   isLoading?: boolean;
-
-  /**
-   * The ID of the meeting currently being joined.
-   */
   joiningMeetingId?: string | null;
 }
 
-/**
- * Displays a list of scheduled meetings with join buttons.
- * Handles loading and empty states.
- *
- * param {ScheduledMeetingsListProps} props
- * returns JSX.Element
- */
 export function ScheduledMeetingsList({
   meetings,
   onJoinMeeting,
@@ -67,7 +45,6 @@ export function ScheduledMeetingsList({
   );
 }
 
-/** Loading skeleton / spinner for meetings list */
 function LoadingState() {
   return (
     <div className="flex items-center justify-center py-16 text-zinc-500">
@@ -77,7 +54,6 @@ function LoadingState() {
   );
 }
 
-/** Empty state UI when there are no scheduled meetings */
 function EmptyState() {
   return (
     <div

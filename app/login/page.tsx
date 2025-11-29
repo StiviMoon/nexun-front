@@ -17,32 +17,20 @@ import useAuthForm from "@/app/hooks/useAuthForm";
 import useSocialAuth from "@/app/hooks/useSocialAuth";
 import { LoginFormSchema } from "@/types/forms";
 
-/**
- * LoginPage component
- *
- * Renders the login page for the Nexun platform, including:
- * - Email/password login form with validation
- * - Social login buttons (Google, GitHub)
- * - Error handling and display
- * - Links to registration page
- *
- * component
- * returns {JSX.Element} The rendered login page
- */
 const LoginPage = () => {
   const router = useRouter();
-  
   const { 
     authErrors, 
     isEmailSignInLoading, 
     isGoogleLoading,
+    isGithubLoading,
     signInWithEmailPassword,
     clearAuthError,
     isLoginPending,
-    isGoogleAuthPending
+    isGoogleAuthPending,
+    isGithubAuthPending
   } = useAuthWithQuery();
 
-  // Hook for managing form state and validation
   const { formData, handleChange, handleSubmit, isSubmitDisabled } = useAuthForm({
     schema: LoginFormSchema,
     initialValues: {
@@ -55,22 +43,22 @@ const LoginPage = () => {
     },
     errorKey: "signIn",
     isLoading: isEmailSignInLoading || isLoginPending,
-    otherLoading: isGoogleLoading || isGoogleAuthPending
+    otherLoading: isGoogleLoading || isGoogleAuthPending || isGithubLoading || isGithubAuthPending
   });
 
-  // Hook for social authentication (Google)
-  const { handleGoogleSignIn } = useSocialAuth({
-    isLoading: isGoogleLoading || isGoogleAuthPending,
-    otherLoading: isEmailSignInLoading || isLoginPending
+  const { handleGoogleSignIn, handleGithubSignIn } = useSocialAuth({
+    isGoogleLoading: isGoogleLoading || isGoogleAuthPending,
+    isGithubLoading: isGithubLoading || isGithubAuthPending,
+    isBlocking: isEmailSignInLoading || isLoginPending
   });
 
-  // Clear authentication errors on mount
   useEffect(() => {
     clearAuthError("signIn");
     clearAuthError("google");
+    clearAuthError("github");
   }, [clearAuthError]);
 
-  const errorMessage = authErrors.signIn ?? authErrors.google;
+  const errorMessage = authErrors.signIn ?? authErrors.google ?? authErrors.github;
 
   return (
     <AuthShell>
@@ -78,10 +66,8 @@ const LoginPage = () => {
         title="Bienvenido a Nexun"
         description="Inicia sesión para acceder a tus reuniones y espacios guardados."
       >
-        {/* Display authentication error messages */}
         <ErrorAlert message={errorMessage} />
 
-        {/* Email/password login form */}
         <form className="space-y-6" onSubmit={handleSubmit} noValidate>
           <div className="grid gap-4 md:grid-cols-2">
             <FormField
@@ -115,26 +101,23 @@ const LoginPage = () => {
           />
         </form>
 
-        {/* Divider for alternative authentication */}
         <AuthDivider text="O continúa con" />
 
-        {/* Social login buttons */}
         <div className="grid grid-cols-2 gap-3">
           <SocialAuthButton
             provider="google"
             onClick={handleGoogleSignIn}
-            disabled={isGoogleLoading || isEmailSignInLoading || isGoogleAuthPending || isLoginPending}
+            disabled={isGoogleLoading || isEmailSignInLoading || isGoogleAuthPending || isLoginPending || isGithubLoading || isGithubAuthPending}
             isLoading={isGoogleLoading || isGoogleAuthPending}
           />
           <SocialAuthButton
             provider="github"
-            onClick={() => {}}
-            disabled
-            className="opacity-70"
+            onClick={handleGithubSignIn}
+            disabled={isGithubLoading || isEmailSignInLoading || isGithubAuthPending || isLoginPending || isGoogleLoading || isGoogleAuthPending}
+            isLoading={isGithubLoading || isGithubAuthPending}
           />
         </div>
 
-        {/* Link to registration page */}
         <AuthLink
           href="/sign"
           text="¿No tienes una cuenta?"

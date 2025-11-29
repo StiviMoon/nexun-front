@@ -1,27 +1,3 @@
-/**
- * ===========================================
- * CHAT ROOM COMPONENT
- * ===========================================
- *
- * A component to display a chat room with messages, message input, and room information.
- * Handles joining and leaving the room, sending messages, and scrolling to the latest messages.
- *
- * Props:
- * typedef {Object} ChatRoomProps
- * property {ChatRoomType} room - The chat room object containing id, name, type, and participants.
- *
- * Usage:
- * ```tsx
- * <ChatRoom room={selectedRoom} />
- * ```
- *
- * Features:
- * - Automatically joins and leaves the room based on `isConnected`.
- * - Displays all messages for the current room.
- * - Scrolls to the latest message when new messages arrive.
- * - Sends messages on Enter key press or button click.
- * - Shows connection status for the user.
- */
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -106,7 +82,10 @@ export const ChatRoom = ({ room }: ChatRoomProps) => {
           </div>
         ) : (
           roomMessages.map((message: ChatMessage) => (
-            <div key={message.id} className="flex flex-col space-y-1">
+            <div
+              key={message.id}
+              className="flex flex-col space-y-1"
+            >
               <div className="flex items-center space-x-2">
                 {message.senderPicture && (
                   <img
@@ -115,13 +94,17 @@ export const ChatRoom = ({ room }: ChatRoomProps) => {
                     className="w-8 h-8 rounded-full"
                   />
                 )}
-                <span className="font-semibold text-sm">{message.senderName || "Usuario"}</span>
+                <span className="font-semibold text-sm">
+                  {message.senderName || "Usuario"}
+                </span>
                 <span className="text-xs text-gray-500 dark:text-gray-400">
                   {formatTime(message.timestamp)}
                 </span>
               </div>
               <div className="ml-10 bg-gray-100 dark:bg-gray-700 rounded-lg p-3 max-w-[80%]">
-                <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                <p className="text-sm whitespace-pre-wrap overflow-wrap-anywhere">
+                  {message.content}
+                </p>
               </div>
             </div>
           ))
@@ -148,9 +131,12 @@ export const ChatRoom = ({ room }: ChatRoomProps) => {
           </Button>
         </div>
         {!isConnected && (
-          <p className="text-xs text-red-500 mt-2">No conectado al servidor de chat</p>
+          <p className="text-xs text-red-500 mt-2">
+            No conectado al servidor de chat
+          </p>
         )}
       </div>
     </Card>
   );
 };
+

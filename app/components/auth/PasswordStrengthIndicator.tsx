@@ -1,29 +1,3 @@
-/**
- * ===========================================
- * PASSWORD STRENGTH INDICATOR COMPONENT
- * ===========================================
- *
- * A component that visually indicates whether a password meets specific requirements.
- * It evaluates the password against predefined rules and displays a checklist.
- *
- * Main responsibilities:
- * - Check the current password against a list of password requirements.
- * - Display a checklist showing which requirements are met.
- * - Update dynamically as the user types.
- * - Provide visual cues with colors and icons for better UX.
- *
- * Props:
- * typedef {Object} PasswordStrengthIndicatorProps
- * property {string} password - The current password to evaluate.
- * property {string} [className] - Additional CSS classes for custom styling.
- *
- * Usage Notes:
- * - Integrates with password input fields to provide real-time feedback.
- * - Relies on `PASSWORD_REQUIREMENTS` array from your form types.
- * - Uses `Check` icon from lucide-react to indicate met requirements.
- * - Recommended to place directly below the password input in forms.
- */
-
 "use client";
 
 import { Check } from "lucide-react";
@@ -72,3 +46,4 @@ const PasswordStrengthIndicator = ({ password, className }: PasswordStrengthIndi
 };
 
 export default PasswordStrengthIndicator;
+

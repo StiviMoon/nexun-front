@@ -6,26 +6,10 @@ import { MediaStatus } from '@/types/meetings';
 import { redirect } from "next/navigation";
 
 interface JoinMeetingCardProps {
-  /**
-   * Callback triggered when the user attempts to join a meeting.
-   * param codeOrUrl - The meeting code or URL entered by the user.
-   * param mediaStatus - Current status of microphone and camera.
-   */
   onJoin: (codeOrUrl: string, mediaStatus: MediaStatus) => void;
-
-  /**
-   * Indicates whether the joining process is in progress.
-   */
   isJoining?: boolean;
 }
 
-/**
- * Component for joining a meeting using a code or link.
- * Displays a text input for the code/link and a media status indicator.
- * 
- * param {JoinMeetingCardProps} props - Props for the component
- * returns JSX.Element
- */
 export function JoinMeetingCard({ onJoin, isJoining = false }: JoinMeetingCardProps) {
   const [codeOrUrl, setCodeOrUrl] = useState('');
   const [mediaStatus, setMediaStatus] = useState<MediaStatus>({
@@ -33,9 +17,6 @@ export function JoinMeetingCard({ onJoin, isJoining = false }: JoinMeetingCardPr
     cameraEnabled: false,
   });
 
-  /**
-   * Handles form submission and calls the onJoin callback.
-   */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (codeOrUrl.trim()) {
@@ -43,16 +24,10 @@ export function JoinMeetingCard({ onJoin, isJoining = false }: JoinMeetingCardPr
     }
   };
 
-  /**
-   * Toggles microphone status.
-   */
   const toggleMic = () => {
     setMediaStatus((prev) => ({ ...prev, micEnabled: !prev.micEnabled }));
   };
 
-  /**
-   * Toggles camera status.
-   */
   const toggleCamera = () => {
     setMediaStatus((prev) => ({ ...prev, cameraEnabled: !prev.cameraEnabled }));
   };

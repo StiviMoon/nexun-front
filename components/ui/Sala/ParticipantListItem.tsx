@@ -6,30 +6,16 @@ import { User, MicOff, VideoOff } from 'lucide-react';
 import { Participant } from '@/types/meetingRoom';
 
 interface ParticipantListItemProps {
-  /** Participant object containing name, avatar, mic/camera status */
   participant: Participant;
 }
 
-/**
- * ParticipantListItem component
- *
- * Renders a single participant in the participant list of a meeting.
- * Displays:
- * - Avatar (fallback to default if missing)
- * - Participant name
- * - Microphone and camera status indicators
- *
- * param participant - The participant data
- */
 export function ParticipantListItem({ participant }: ParticipantListItemProps) {
   const [src, setSrc] = useState<string | undefined>(participant.avatar);
 
-  // Update avatar if participant.avatar changes
   useEffect(() => {
     setSrc(participant.avatar);
   }, [participant.avatar]);
 
-  // Fallback to default avatar if image fails to load
   const handleImageLoad = (img?: HTMLImageElement | null) => {
     if (!img || img.naturalWidth === 0) {
       setSrc('/team/default.svg');

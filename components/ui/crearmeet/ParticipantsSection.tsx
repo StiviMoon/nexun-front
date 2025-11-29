@@ -1,21 +1,10 @@
+// components/CreateMeeting/ParticipantsSection.tsx
 'use client';
 
 import React, { useState } from 'react';
 import { Search, UserPlus, X } from 'lucide-react';
 import { ParticipantsSectionProps, Participant } from './types';
 
-/**
- * ParticipantsSection Component
- *
- * Displays the participants of a meeting, allows searching and adding new participants,
- * and removing existing participants.
- *
- * param {ParticipantsSectionProps} props - Component props
- * param {Participant[]} props.participants - Current list of participants
- * param {(participant: Participant) => void} props.onAddParticipant - Callback to add a participant
- * param {(id: string) => void} props.onRemoveParticipant - Callback to remove a participant by ID
- * returns {JSX.Element} UI for managing meeting participants
- */
 const ParticipantsSection: React.FC<ParticipantsSectionProps> = ({
   participants,
   onAddParticipant,
@@ -23,15 +12,11 @@ const ParticipantsSection: React.FC<ParticipantsSectionProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
 
-  /**
-   * Handle the search form submission.
-   * Simulates finding a user and adding them to the participants list.
-   *
-   * @param {React.FormEvent} e - Form submit event
-   */
+  // Simulación de búsqueda de usuarios
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
+      // Aquí conectarías con tu API de búsqueda de usuarios
       const newParticipant: Participant = {
         id: Date.now().toString(),
         name: searchQuery,
@@ -62,7 +47,10 @@ const ParticipantsSection: React.FC<ParticipantsSectionProps> = ({
       {/* Participants List */}
       <div className="flex flex-wrap gap-3">
         {participants.map((participant) => (
-          <div key={participant.id} className="relative group">
+          <div
+            key={participant.id}
+            className="relative group"
+          >
             <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-zinc-700 group-hover:border-cyan-500 transition-all">
               {participant.avatar ? (
                 <img

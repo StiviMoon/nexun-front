@@ -20,11 +20,3 @@ export interface MeetingRoom {
 
 export type SidebarTab = 'participants' | 'chat';
 
-export interface ChatMessage {
-  id: string;
-  senderId: string;
-  senderName: string;
-  content: string;
-  timestamp: Date;
-}
-

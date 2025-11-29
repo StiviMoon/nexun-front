@@ -9,16 +9,9 @@ import Image from 'next/image';
 import { useAuthWithQuery } from '@/hooks/useAuthWithQuery';
 
 interface AsideNavbarProps {
-  /** Optional additional CSS classes for the aside navbar */
   className?: string;
 }
 
-/**
- * AsideNavbar
- * -----------
- * Renders the main navigation sidebar for desktop and a slide-out menu for mobile.
- * Includes navigation links, user profile, and sign-out functionality.
- */
 const AsideNavbar: React.FC<AsideNavbarProps> = ({ className = '' }) => {
   const pathname = usePathname();
   const router = useRouter();
@@ -33,12 +26,12 @@ const AsideNavbar: React.FC<AsideNavbarProps> = ({ className = '' }) => {
   });
   const { currentUser, signOutUser, isSignOutLoading, isLogoutPending } = useAuthWithQuery();
 
-  // Close mobile menu when path changes
+  // Cerrar menú móvil al cambiar de ruta
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [pathname]);
 
-  // Prevent body scroll when mobile menu is open
+  // Prevenir scroll cuando el menú móvil está abierto
   useEffect(() => {
     if (isMobileMenuOpen) {
       document.body.style.overflow = 'hidden';
@@ -50,7 +43,7 @@ const AsideNavbar: React.FC<AsideNavbarProps> = ({ className = '' }) => {
     };
   }, [isMobileMenuOpen]);
 
-  // Persist collapse state in localStorage
+  // Persistir estado en localStorage cuando cambia
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('navbar-collapsed', String(isCollapsed));
@@ -61,7 +54,6 @@ const AsideNavbar: React.FC<AsideNavbarProps> = ({ className = '' }) => {
   const userName = currentUser?.displayName || currentUser?.email || 'Mi perfil';
   const userAvatar = currentUser?.photoURL;
 
-  /** Sign out the current user and redirect to login page */
   const handleSignOut = async () => {
     try {
       await signOutUser();
@@ -71,13 +63,7 @@ const AsideNavbar: React.FC<AsideNavbarProps> = ({ className = '' }) => {
     }
   };
 
-  /**
-   * NavContent
-   * -----------
-   * Renders navigation items and user profile section.
-   *
-   * param isMobile - Boolean flag indicating mobile rendering
-   */
+  // Contenido compartido del menú
   const NavContent = ({ isMobile = false }: { isMobile?: boolean }) => (
     <>
       {/* Navigation Items */}
@@ -296,6 +282,8 @@ const AsideNavbar: React.FC<AsideNavbarProps> = ({ className = '' }) => {
         </div>
         <NavContent isMobile={false} />
       </aside>
+
+      {/* Spacer removed — layout now adds top padding to avoid overlap */}
     </>
   );
 };

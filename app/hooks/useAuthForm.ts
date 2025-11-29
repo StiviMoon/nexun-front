@@ -1,40 +1,18 @@
-'use client';
+"use client";
 
 import { useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { z } from "zod";
 import { useAuthWithQuery } from "@/hooks/useAuthWithQuery";
 
-/**
- * Opciones para inicializar `useAuthForm`.
- *
- * template T - Un esquema Zod que describe los valores del formulario.
- *
- *type UseAuthFormOptions<T extends z.ZodSchema> = {
-  Esquema zod para validar el formulario */
-  ' schema: T'
-  ' Valores iniciales del formulario '
-  ' initialValues: z.infer<T>'
-  'Función que se ejecuta al enviar el formulario '
-  'onSubmit: (values: z.infer<T>) => Promise<void>'
-  ' Clave de error asociada: signIn, signUp o google' 
-  'errorKey: "signIn" | "signUp" | "google"'
-  ' Indica si el formulario está en estado de carga   isLoading?: boolean'
-  ' Otra carga externa que bloquea el envío'
-  'otherLoading?: boolean'
-/**
- * Hook para manejar formularios de autenticación con validación Zod.
- *
- * template T - Esquema Zod del formulario.
- * param {UseAuthFormOptions<T>} options - Configuración del formulario.
- * returns {{
- *   formData: z.infer<T>;
- *   handleChange: (event: ChangeEvent<HTMLInputElement>) => void;
- *   handleSubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
- *   isFormValid: boolean;
- *   isSubmitDisabled: boolean;
- *   setFormData: React.Dispatch<React.SetStateAction<z.infer<T>>>;
- * }}
- */
+type UseAuthFormOptions<T extends z.ZodSchema> = {
+  schema: T;
+  initialValues: z.infer<T>;
+  onSubmit: (values: z.infer<T>) => Promise<void>;
+  errorKey: "signIn" | "signUp" | "google";
+  isLoading?: boolean;
+  otherLoading?: boolean;
+};
+
 const useAuthForm = <T extends z.ZodSchema>({
   schema,
   initialValues,
@@ -70,7 +48,9 @@ const useAuthForm = <T extends z.ZodSchema>({
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (isLoading || otherLoading) return;
+    if (isLoading || otherLoading) {
+      return;
+    }
 
     const validationResult = schema.safeParse(formData);
 
@@ -98,3 +78,4 @@ const useAuthForm = <T extends z.ZodSchema>({
 };
 
 export default useAuthForm;
+

@@ -1,29 +1,16 @@
+// components/CreateMeeting/MeetingDetails.tsx
 'use client';
 
 import React from 'react';
 import { Calendar, Clock, Settings } from 'lucide-react';
 import { MeetingDetailsProps } from './types';
 
-/**
- * MeetingDetails Component
- *
- * Renders a form for entering meeting details including:
- * - Title
- * - Description
- * - Duration
- * - Date and Time
- *
- * param {MeetingDetailsProps} props - Component props
- * param {import('./types').MeetingFormData} props.formData - Current form data for the meeting
- * param {(field: keyof import('./types').MeetingFormData, value: any) => void} props.onChange - Handler to update form fields
- * returns {JSX.Element} Meeting details input form
- */
 const MeetingDetails: React.FC<MeetingDetailsProps> = ({ formData, onChange }) => {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-semibold text-white mb-6">Detalles de la reunión</h2>
 
-      {/* Title */}
+      {/* Título */}
       <div>
         <label className="block text-white text-sm font-medium mb-2">
           Título
@@ -37,7 +24,7 @@ const MeetingDetails: React.FC<MeetingDetailsProps> = ({ formData, onChange }) =
         />
       </div>
 
-      {/* Description */}
+      {/* Descripción */}
       <div>
         <label className="block text-white text-sm font-medium mb-2">
           Descripción
@@ -51,7 +38,7 @@ const MeetingDetails: React.FC<MeetingDetailsProps> = ({ formData, onChange }) =
         />
       </div>
 
-      {/* Duration */}
+      {/* Duración */}
       <div>
         <label className="block text-white text-sm font-medium mb-2 flex items-center gap-2">
           Duración
@@ -66,9 +53,9 @@ const MeetingDetails: React.FC<MeetingDetailsProps> = ({ formData, onChange }) =
         />
       </div>
 
-      {/* Date & Time */}
+      {/* Fecha y Hora */}
       <div className="grid grid-cols-2 gap-4">
-        {/* Date */}
+        {/* Fecha */}
         <div>
           <label className="block text-white text-sm font-medium mb-2">
             Fecha
@@ -82,9 +69,10 @@ const MeetingDetails: React.FC<MeetingDetailsProps> = ({ formData, onChange }) =
             />
             <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
           </div>
+          
         </div>
 
-        {/* Time */}
+        {/* Hora */}
         <div>
           <label className="block text-white text-sm font-medium mb-2">
             Hora

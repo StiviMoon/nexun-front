@@ -1,26 +1,3 @@
-/**
- * ===========================================
- * AUTH SHELL COMPONENT
- * ===========================================
- *
- * A layout wrapper component for authentication pages, providing
- * consistent background, centering, and styling for child elements.
- *
- * Main responsibilities:
- * - Center authentication content both vertically and horizontally.
- * - Provide a subtle background overlay with grid pattern and opacity.
- * - Allow custom styling through the `className` prop.
- *
- * Props:
- * typedef {Object} AuthShellProps
- * property {ReactNode} children - The content to render inside the shell (e.g., forms, cards).
- * property {string} [className] - Optional additional classes for custom styling.
- *
- * Usage Notes:
- * - Typically used as the top-level wrapper for login, signup, or password recovery pages.
- * - Ensures a consistent look and feel across all authentication-related pages.
- */
-
 "use client";
 
 import { ReactNode } from "react";
@@ -46,3 +23,4 @@ const AuthShell = ({ children, className }: AuthShellProps) => {
 };
 
 export default AuthShell;
+

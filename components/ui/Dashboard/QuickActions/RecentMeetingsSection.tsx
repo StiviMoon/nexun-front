@@ -1,3 +1,4 @@
+// components/Dashboard/QuickActions/RecentMeetingsSection.tsx
 'use client';
 
 import React from 'react';
@@ -9,15 +10,6 @@ interface RecentMeetingsSectionProps {
   onMeetingClick?: (meetingId: string) => void;
 }
 
-/**
- * RecentMeetingsSection component displays recent meetings as avatars.
- * Shows a placeholder if no meetings exist.
- * 
- * param {RecentMeetingsSectionProps} props - Props for RecentMeetingsSection
- * param {RecentMeeting[]} props.meetings - Array of recent meetings
- * param {(meetingId: string) => void} [props.onMeetingClick] - Optional click handler for a meeting
- * returns {JSX.Element} Rendered RecentMeetingsSection component
- */
 const RecentMeetingsSection: React.FC<RecentMeetingsSectionProps> = ({
   meetings,
   onMeetingClick
@@ -26,6 +18,7 @@ const RecentMeetingsSection: React.FC<RecentMeetingsSectionProps> = ({
     <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6 hover:border-zinc-700 transition-all h-full min-h-[180px]">
       {/* Header */}
       <div className="flex items-center gap-2 mb-6">
+        
         <h3 className="text-white font-medium">Recientes</h3>
         <Clock className="w-6 h-6 text-purple-300" />
       </div>
@@ -36,7 +29,7 @@ const RecentMeetingsSection: React.FC<RecentMeetingsSectionProps> = ({
           <div className="flex flex-col items-start">
             <p className="text-sm text-gray-400 mb-2">No hay reuniones recientes</p>
             <div className="flex items-center gap-2">
-              {/* Placeholder skeleton avatars */}
+              {/* placeholder skeleton avatars */}
               <div className="w-14 h-14 rounded-full bg-zinc-800 animate-pulse" />
               <div className="w-14 h-14 rounded-full bg-zinc-800 animate-pulse" />
               <div className="w-14 h-14 rounded-full bg-zinc-800 animate-pulse" />
@@ -74,7 +67,7 @@ const RecentMeetingsSection: React.FC<RecentMeetingsSectionProps> = ({
               </button>
             ))}
 
-            {/* Show more indicator if there are more than 3 meetings */}
+            {/* Show more indicator if there are more than 3 */}
             {meetings.length > 3 && (
               <div className="flex flex-col items-center gap-2">
                 <div className="w-14 h-14 rounded-full border-2 border-dashed border-zinc-700 flex items-center justify-center text-gray-400 hover:border-cyan-500 hover:text-cyan-400 transition-all cursor-pointer">

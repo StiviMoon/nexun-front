@@ -1,38 +1,3 @@
-/**
- * ===========================================
- * MESSAGE LIST COMPONENT
- * ===========================================
- *
- * Renders a virtualized list of chat messages using `react-virtuoso`,
- * automatically managing scroll behavior and grouping messages
- * by date. It ensures optimal performance even with large datasets
- * thanks to virtualization.
- *
- * This component:
- * - Displays messages in chronological order.
- * - Automatically scrolls to the latest message when new messages arrive.
- * - Inserts date separators when messages belong to different days.
- * - Distinguishes between the current user’s messages and others.
- * - Wraps each message with the `MessageBubble` component.
- *
- * Props:
- * typedef {Object} MessageListProps
- * property {ChatMessage[]} messages - List of messages to render.
- * property {string} roomId - ID of the room/conversation (reserved for future logic).
- * property {string} [className] - Optional Tailwind class overrides for styling.
- *
- * Behavior:
- * - If no messages are present, a placeholder empty state is displayed.
- * - When messages update, the component scrolls smoothly to the bottom.
- * - Uses `Virtuoso` for efficient rendering and smooth scrolling.
- * - Dynamically checks if a date separator should be shown based on timestamps.
- *
- * Notes:
- * - `react-virtuoso` handles virtualization, improving performance for long histories.
- * - `useAuth` identifies the current user to style outgoing vs incoming messages.
- * - This component does not handle message sending; only visualization.
- */
-
 "use client";
 
 import { useEffect, useRef } from "react";

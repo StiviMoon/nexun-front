@@ -1,48 +1,9 @@
-/** #documentation
- * MessageInput Component
- * ----------------------
- * This component provides a controlled textarea input for composing and sending chat messages.
- * It supports features such as dynamic height adjustment, keyboard shortcuts, disabled states,
- * and a visual loading indicator when a message is being sent.
- *
- * Key Responsibilities:
- * - Allow users to type messages and submit them via the send button or by pressing Enter.
- * - Automatically resize the textarea based on content up to a max height.
- * - Disable input and controls while a message is being sent.
- * - Provide accessibility-friendly placeholder and interaction behavior.
- *
- * Behavioral Notes:
- * - Pressing Enter without Shift triggers the send action.
- * - Pressing Shift + Enter inserts a new line for multi-line messages.
- * - The component adjusts the textarea height smoothly without layout jumps.
- * - Prevents sending empty or whitespace-only messages.
- *
- * Performance Considerations:
- * - Uses a ref to manipulate the textarea height efficiently without excessive re-renders.
- *
- * Accessibility:
- * - Button and textarea reflect disabled state visually and functionally.
- * - Automatically restores height after sending a message.
- */
-
 "use client";
 
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
 import { Send, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-/** #documentation
- * MessageInputProps Interface
- * ---------------------------
- * Defines the properties used to configure the MessageInput component.
- *
- * Properties:
- * - onSend:        Function triggered when the user submits the message.
- * - disabled:      Disables the input entirely (e.g., when offline).
- * - isSending:     Indicates whether a message is currently being sent.
- * - placeholder:   Custom placeholder text for the textarea.
- * - className:     Optional className for external styling.
- */
 interface MessageInputProps {
   onSend: (message: string) => void;
   disabled?: boolean;
@@ -51,12 +12,6 @@ interface MessageInputProps {
   className?: string;
 }
 
-/** #documentation
- * MessageInput Component
- * ----------------------
- * Renders an adjustable textarea for writing messages, along with a send button.
- * Handles input validation, dynamic height adjustment, and keyboard submit behavior.
- */
 export const MessageInput = ({
   onSend,
   disabled = false,
@@ -67,16 +22,6 @@ export const MessageInput = ({
   const [message, setMessage] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  /** #documentation
-   * handleSend
-   * ----------
-   * Validates and submits the message.
-   * Steps:
-   * - Prevents sending empty or whitespace-only messages.
-   * - Avoids sending while disabled or already processing.
-   * - Clears the input after successful submission.
-   * - Resets textarea height to default.
-   */
   const handleSend = () => {
     if (!message.trim() || disabled || isSending) {
       return;
@@ -90,13 +35,6 @@ export const MessageInput = ({
     }
   };
 
-  /** #documentation
-   * handleKeyPress
-   * --------------
-   * Captures keyboard events within the textarea.
-   * - Enter submits message.
-   * - Shift + Enter creates a newline.
-   */
   const handleKeyPress = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -104,15 +42,6 @@ export const MessageInput = ({
     }
   };
 
-  /** #documentation
-   * useEffect - Dynamic Height Adjustment
-   * -------------------------------------
-   * Automatically adjusts the textarea height based on its scrollHeight.
-   * Behavior:
-   * - Resets height before recalculating to ensure consistency.
-   * - Restricts expansion to a maximum height of 120px.
-   * - Enables vertical scrolling only when necessary.
-   */
   useEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -124,7 +53,7 @@ export const MessageInput = ({
       const newHeight = Math.min(scrollHeight, maxHeight);
       textarea.style.height = `${newHeight}px`;
       
-      // Toggle vertical scrollbar based on overflow
+      // Solo mostrar scrollbar si hay overflow
       if (scrollHeight > maxHeight) {
         textarea.style.overflowY = "auto";
       } else {
@@ -159,8 +88,6 @@ export const MessageInput = ({
             )}
           />
         </div>
-
-        {/* Send Button */}
         <button
           onClick={handleSend}
           disabled={!message.trim() || disabled || isSending}

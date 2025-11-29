@@ -1,3 +1,4 @@
+// components/Dashboard/QuickActions/QuickActionCard.tsx
 'use client';
 
 import React from 'react';
@@ -9,15 +10,6 @@ interface QuickActionCardProps {
   onClick: () => void;
 }
 
-/**
- * QuickActionCard component represents a clickable card for a quick action.
- * 
- * param {QuickActionCardProps} props - Props for the QuickActionCard component
- * param {string} props.title - Title displayed on the card
- * param {'plus' | 'link'} props.icon - Icon type to display (plus or link)
- * param {() => void} props.onClick - Click handler for the card
- * returns {JSX.Element} Rendered QuickActionCard component
- */
 const QuickActionCard: React.FC<QuickActionCardProps> = ({ title, icon, onClick }) => {
   const Icon = icon === 'plus' ? Plus : Link2;
 

@@ -1,28 +1,3 @@
-/**
- * ===========================================
- * CHAT ROOMS LIST COMPONENT
- * ===========================================
- *
- * A component that displays a list of chat rooms and allows the user to create new rooms.
- * Handles room selection, creation, and displays room type and participant count.
- *
- * Props:
- * typedef {Object} ChatRoomsListProps
- * property {(room: ChatRoom) => void} onSelectRoom - Callback when a room is selected.
- * property {string} [selectedRoomId] - The currently selected room's ID (optional).
- *
- * Usage:
- * ```tsx
- * <ChatRoomsList onSelectRoom={handleSelectRoom} selectedRoomId={currentRoomId} />
- * ```
- *
- * Features:
- * - Displays all available chat rooms.
- * - Highlights the currently selected room.
- * - Allows creation of new rooms with name, type, and visibility.
- * - Shows a message if there are no rooms available.
- * - Disables room creation if not connected.
- */
 "use client";
 
 import { useState } from "react";
@@ -129,3 +104,4 @@ export const ChatRoomsList = ({ onSelectRoom, selectedRoomId }: ChatRoomsListPro
     </div>
   );
 };
+

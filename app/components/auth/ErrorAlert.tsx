@@ -1,26 +1,3 @@
-/**
- * ===========================================
- * ERROR ALERT COMPONENT
- * ===========================================
- *
- * A reusable alert component for displaying error messages in forms or UI.
- * It uses a destructive variant styling to clearly indicate an error state.
- *
- * Main responsibilities:
- * - Show an error icon (AlertCircle) alongside the message.
- * - Conditionally render only when a message is provided.
- * - Allow custom styling via the `className` prop.
- *
- * Props:
- * typedef {Object} ErrorAlertProps
- * property {string | null | undefined} message - The error message to display. If null or undefined, the alert is not rendered.
- * property {string} [className] - Optional additional classes for custom styling.
- *
- * Usage Notes:
- * - Typically used in forms to display validation errors or server errors.
- * - Integrates with other UI components like Alert and AlertDescription for consistent styling.
- */
-
 "use client";
 
 import { AlertCircle } from "lucide-react";
@@ -55,3 +32,4 @@ const ErrorAlert = ({ message, className }: ErrorAlertProps) => {
 };
 
 export default ErrorAlert;
+

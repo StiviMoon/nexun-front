@@ -1,3 +1,4 @@
+// components/Dashboard/QuickActions/index.tsx
 'use client';
 
 import React from 'react';
@@ -5,15 +6,6 @@ import QuickActionCard from './QuickActionCard';
 import RecentMeetingsSection from './RecentMeetingsSection';
 import { QuickActionsProps } from '../types';
 
-/**
- * QuickActions component displays a set of quick action cards
- * and a section for recent meetings.
- * 
- * param {QuickActionsProps} props - Props for QuickActions component
- * param {Array} props.actions - Array of action objects with id, title, icon, and onClick
- * param {Array} props.recentMeetings - Array of recent meeting objects
- * returns {JSX.Element} The rendered QuickActions component
- */
 const QuickActions: React.FC<QuickActionsProps> = ({ actions, recentMeetings }) => {
   return (
     <div className="mb-8 sm:mb-10 lg:mb-12">
@@ -35,7 +27,7 @@ const QuickActions: React.FC<QuickActionsProps> = ({ actions, recentMeetings }) 
           meetings={recentMeetings}
           onMeetingClick={(meetingId) => {
             console.log('Navigating to meeting:', meetingId);
-            // Navigation logic to the meeting can be added here
+            // Aquí puedes agregar la navegación a la reunión
           }}
         />
       </div>

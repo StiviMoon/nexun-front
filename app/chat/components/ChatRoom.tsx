@@ -1,26 +1,3 @@
-/**
- * chat room component
- *
- * this component renders an interactive chat room interface, including:
- * - room header with name, visibility status and optional access code
- * - message list
- * - message input bar
- *
- * @#component
- *
- * @#param {object} props - component properties
- * @#param {ChatRoomType} props.room - room information (name, visibility, createdBy, code, etc.)
- * @#param {ChatMessage[]} props.messages - list of chat messages
- * @#param {boolean} props.isConnected - indicates if the user is connected to the chat server
- * @#param {boolean} props.isSending - indicates if a message is being sent
- * @#param {function} props.onSendMessage - callback triggered when the user sends a message
- * @#param {function} props.onClose - callback triggered when the room is closed
- * @#param {string} [props.currentUserId] - current user's id
- * @#param {string} [props.className] - optional extra css classes
- *
- * @#returns {JSX.Element} rendered chat room component
- */
-
 "use client";
 
 import { useState } from "react";

@@ -1,3 +1,4 @@
+// components/Dashboard/UpcomingMeetings/MeetingCard.tsx
 'use client';
 
 import React from 'react';
@@ -9,22 +10,7 @@ interface MeetingCardProps {
   onEnter: (meetingId: string) => void;
 }
 
-/**
- * MeetingCard Component
- * --------------------
- * Displays a single meeting with its title, date, and time.
- * Provides a button to enter the meeting.
- *
- * param {MeetingCardProps} props - Component props
- * param {Meeting} props.meeting - Meeting data object
- * param {(meetingId: string) => void} props.onEnter - Callback when "Enter" button is clicked
- */
 const MeetingCard: React.FC<MeetingCardProps> = ({ meeting, onEnter }) => {
-  /**
-   * Format date string to localized Spanish format (DD MMM YYYY)
-   * param {string} dateString - ISO date string
-   * returns {string} Formatted date
-   */
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('es-ES', { 

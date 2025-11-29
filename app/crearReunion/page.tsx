@@ -1,23 +1,3 @@
-/**
- * ===========================================
- * CREAR REUNION PAGE
- * ===========================================
- *
- * Page component for creating a new meeting.
- * 
- * Features:
- * - Retrieves the currently authenticated user using `useAuthWithQuery`.
- * - Extracts user display name, email, and avatar for passing to the `CreateMeeting` component.
- * - Wraps content with `AppLayout` to provide consistent application layout.
- * - Handles client-side rendering; returns `null` if no user is authenticated.
- * - Supports scrolling and flexible layout for responsive design.
- *
- * Usage:
- * ```tsx
- * <CrearReunionPage />
- * ```
- */
-
 "use client";
 
 import { useAuthWithQuery } from "@/hooks/useAuthWithQuery";
@@ -28,7 +8,6 @@ import { PageHeader } from '@/components/ui/PageHeader';
 export default function CrearReunionPage() {
   const { currentUser } = useAuthWithQuery();
 
-  // Do not render if no authenticated user is found
   if (!currentUser) {
     return null;
   }
@@ -40,6 +19,8 @@ export default function CrearReunionPage() {
     <AppLayout>
       <div className="flex flex-col h-full bg-black">
         {/* Header unificado */}
+        
+        
         <div className="flex-1 overflow-auto">
           <CreateMeeting 
             userName={userName}

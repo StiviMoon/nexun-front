@@ -1,34 +1,21 @@
+// components/CreateMeeting/index.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Bell } from 'lucide-react';
 import MeetingDetails from './MeetingDetails';
 import ParticipantsSection from './ParticipantsSection';
 import MeetingSummary from './MeetingSummary';
 import { MeetingFormData, Participant } from './types';
+import { useVideoCall } from '@/app/hooks/useVideoCall';
 
-/**
- * Props for CreateMeeting component
- */
 interface CreateMeetingProps {
-  /** URL of the user's avatar */
   userAvatar?: string;
-  /** Display name of the user */
   userName?: string;
 }
 
-/**
- * CreateMeeting Component
- *
- * This component allows users to schedule a new meeting. It includes:
- * - Meeting details input (title, description, date, time, duration)
- * - Participant management (add/remove participants)
- * - Meeting summary and creation
- *
- * param {CreateMeetingProps} props - Component props
- * returns {JSX.Element} A page section for creating a new meeting
- */
 const CreateMeeting: React.FC<CreateMeetingProps> = ({ 
   userAvatar = 'https://api.dicebear.com/7.x/avataaars/svg?seed=user',
   userName = 'Usuario'
@@ -42,22 +29,29 @@ const CreateMeeting: React.FC<CreateMeetingProps> = ({
     participants: []
   });
 
-  /**
-   * Updates a specific field in the meeting form data
-   * param {keyof MeetingFormData} field - Field to update
-   * param {any} value - New value for the field
-   */
-  const handleChange = (field: keyof MeetingFormData, value: any) => {
+  const [isCreating, setIsCreating] = useState(false);
+  const { connect, createRoom, isConnected } = useVideoCall();
+  const router = useRouter();
+
+  // Conectar al servicio de video al montar
+  useEffect(() => {
+    if (!isConnected) {
+      connect().catch((err) => {
+        console.error('Error conectando:', err);
+      });
+    }
+    
+    // NO desconectar al desmontar - dejar la conexión activa para cuando navegues a la sala
+    // El cleanup lo manejará la página de la sala si es necesario
+  }, [connect, isConnected]);
+
+  const handleChange = (field: keyof MeetingFormData, value: string | Participant[]) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
   };
 
-  /**
-   * Adds a participant to the meeting
-   * param {Participant} participant - Participant to add
-   */
   const handleAddParticipant = (participant: Participant) => {
     setFormData(prev => ({
       ...prev,
@@ -65,10 +59,6 @@ const CreateMeeting: React.FC<CreateMeetingProps> = ({
     }));
   };
 
-  /**
-   * Removes a participant from the meeting by id
-   * param {string} id - Participant ID to remove
-   */
   const handleRemoveParticipant = (id: string) => {
     setFormData(prev => ({
       ...prev,
@@ -76,36 +66,61 @@ const CreateMeeting: React.FC<CreateMeetingProps> = ({
     }));
   };
 
-  const router = useRouter();
-
-  /**
-   * Handles creation of the meeting.
-   * Saves the meeting in sessionStorage and navigates to the meeting room.
-   */
-  const handleCreateMeeting = () => {
-    console.log('Creando reunión:', formData);
-    const roomId = typeof crypto !== 'undefined' && (crypto as any).randomUUID
-      ? (crypto as any).randomUUID()
-      : Math.random().toString(36).slice(2, 10);
-
-    // Store meeting temporarily in sessionStorage
-    try {
-      const payload = {
-        id: roomId,
-        title: formData.title,
-        description: formData.description,
-        date: formData.date,
-        time: formData.time,
-        duration: formData.duration,
-        participants: formData.participants,
-      };
-      sessionStorage.setItem(`meeting:${roomId}`, JSON.stringify(payload));
-    } catch (e) {
-      console.warn('No se pudo guardar meeting en sessionStorage', e);
+  const handleCreateMeeting = async () => {
+    if (!formData.title.trim()) {
+      alert('Por favor ingresa un título para la reunión');
+      return;
     }
 
-    // TODO: Call backend API to create meeting and get real ID
-    router.push(`/Sala/${roomId}`);
+    if (!isConnected) {
+      alert('Conectando al servicio de video... Por favor espera.');
+      await connect();
+      return;
+    }
+
+    setIsCreating(true);
+
+    try {
+      // Crear sala de video real (máximo 4 personas, siempre genera código)
+      // Crear chat privado asociado automáticamente
+      const roomId = await createRoom(
+        formData.title,
+        formData.description || undefined,
+        10, // maxParticipants - máximo 10 personas
+        "public", // visibility - siempre pública pero con código
+        true // createChat - crear chat privado asociado
+      );
+
+      if (!roomId) {
+        throw new Error('No se pudo crear la sala');
+      }
+
+      // Guardar datos de la reunión en sessionStorage
+      try {
+        const payload = {
+          id: roomId,
+          title: formData.title,
+          description: formData.description,
+          date: formData.date,
+          time: formData.time,
+          duration: formData.duration,
+          participants: formData.participants,
+        };
+        sessionStorage.setItem(`meeting:${roomId}`, JSON.stringify(payload));
+      } catch (e) {
+        console.warn('No se pudo guardar meeting en sessionStorage', e);
+      }
+
+      // Navegar a la sala creada (NO desconectar el socket, mantener la conexión)
+      // Esperar un momento para asegurar que el estado se actualice
+      await new Promise(resolve => setTimeout(resolve, 100));
+      router.push(`/Sala/${roomId}`);
+      // No resetear isCreating aquí porque el componente se desmontará al navegar
+    } catch (err) {
+      console.error('Error creando reunión:', err);
+      alert(`Error al crear la reunión: ${err instanceof Error ? err.message : 'Error desconocido'}`);
+      setIsCreating(false);
+    }
   };
 
   return (
@@ -126,9 +141,11 @@ const CreateMeeting: React.FC<CreateMeetingProps> = ({
 
             {/* User Avatar */}
             <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-zinc-700">
-              <img
+              <Image
                 src={userAvatar}
                 alt={userName}
+                width={40}
+                height={40}
                 className="w-full h-full object-cover"
               />
             </div>
@@ -158,6 +175,8 @@ const CreateMeeting: React.FC<CreateMeetingProps> = ({
             <MeetingSummary
               formData={formData}
               onCreateMeeting={handleCreateMeeting}
+              isCreating={isCreating}
+              isConnected={isConnected}
             />
           </div>
         </div>

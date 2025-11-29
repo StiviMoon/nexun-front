@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
@@ -20,23 +20,18 @@ import useSocialAuth from "@/app/hooks/useSocialAuth";
 import { cn } from "@/lib/utils";
 import { RegisterFormSchema } from "@/types/forms";
 
-/**
- * RegisterPage component renders the registration form for new users.
- *
- * component
- * returns {JSX.Element} The registration page UI
- */
 const RegisterPage = () => {
   const router = useRouter();
-
   const { 
     authErrors, 
     isEmailSignUpLoading, 
     isGoogleLoading,
+    isGithubLoading,
     registerWithEmailPassword,
     clearAuthError,
     isRegisterPending,
-    isGoogleAuthPending
+    isGoogleAuthPending,
+    isGithubAuthPending
   } = useAuthWithQuery();
 
   const { formData, handleChange, handleSubmit, isSubmitDisabled } = useAuthForm({
@@ -49,18 +44,6 @@ const RegisterPage = () => {
       confirmPassword: "",
       age: ""
     },
-
-    /**
-     * Handles the form submission to register a new user
-     * param {Object} values - The form values
-     * param {string} values.firstName
-     * param {string} values.lastName
-     * param {string} values.email
-     * param {string} values.password
-     * param {string | number} values.age
-     * returns {Promise<void>}
-     * throws Will throw an error if age is below 15 or above 150
-     */
     onSubmit: async (values) => {
       const { firstName, lastName, email, password, age } = values;
       const ageNumber = typeof age === "string" && age !== "" ? parseInt(age, 10) : (typeof age === "number" ? age : 0);
@@ -72,46 +55,47 @@ const RegisterPage = () => {
     },
     errorKey: "signUp",
     isLoading: isEmailSignUpLoading || isRegisterPending,
-    otherLoading: isGoogleLoading || isGoogleAuthPending
+    otherLoading: isGoogleLoading || isGoogleAuthPending || isGithubLoading || isGithubAuthPending
   });
 
-  /**
-   * Handles changes to the age input field, preventing negative numbers
-   * param {React.ChangeEvent<HTMLInputElement>} e
-   */
   const handleAgeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
+    // Prevenir números negativos
     if (value === "" || (parseInt(value, 10) >= 0 && !isNaN(parseInt(value, 10)))) {
       handleChange(e);
+    } else if (value.startsWith("-")) {
+      // Si intenta escribir un negativo, simplemente no actualizar
+      return;
     }
   };
 
-  /**
-   * Prevents invalid keys for the age input (negative, e, E, +, .)
-   * param {React.KeyboardEvent<HTMLInputElement>} e
-   */
   const handleAgeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Prevenir que se escriba el signo negativo, 'e', 'E', '+', '.'
     if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '.') {
       e.preventDefault();
     }
   };
 
-  const { handleGoogleSignIn } = useSocialAuth({
-    isLoading: isGoogleLoading || isGoogleAuthPending,
-    otherLoading: isEmailSignUpLoading || isRegisterPending
+  const { handleGoogleSignIn, handleGithubSignIn } = useSocialAuth({
+    isGoogleLoading: isGoogleLoading || isGoogleAuthPending,
+    isGithubLoading: isGithubLoading || isGithubAuthPending,
+    isBlocking: isEmailSignUpLoading || isRegisterPending
   });
 
   useEffect(() => {
     clearAuthError("signUp");
     clearAuthError("google");
+    clearAuthError("github");
   }, [clearAuthError]);
 
   const passwordsMatch = useMemo(() => {
-    if (!formData.password || !formData.confirmPassword) return false;
+    if (!formData.password || !formData.confirmPassword) {
+      return false;
+    }
     return formData.password === formData.confirmPassword;
   }, [formData.password, formData.confirmPassword]);
 
-  const errorMessage = authErrors.signUp ?? authErrors.google;
+  const errorMessage = authErrors.signUp ?? authErrors.google ?? authErrors.github;
 
   return (
     <AuthShell>
@@ -123,7 +107,6 @@ const RegisterPage = () => {
 
         <form className="space-y-6" onSubmit={handleSubmit} noValidate>
           <div className="grid gap-4 md:grid-cols-2">
-            {/* First Name */}
             <FormField
               id="firstName"
               label="Nombre"
@@ -137,7 +120,6 @@ const RegisterPage = () => {
               icon={<User className="h-4 w-4" />}
             />
 
-            {/* Last Name */}
             <FormField
               id="lastName"
               label="Apellido"
@@ -151,7 +133,6 @@ const RegisterPage = () => {
               icon={<User className="h-4 w-4" />}
             />
 
-            {/* Email */}
             <FormField
               id="email"
               label="Correo electrónico"
@@ -165,7 +146,6 @@ const RegisterPage = () => {
               icon={<Mail className="h-4 w-4" />}
             />
 
-            {/* Age */}
             <FormField
               id="age"
               label="Edad (mínimo 15 años)"
@@ -180,7 +160,6 @@ const RegisterPage = () => {
               min="15"
             />
 
-            {/* Password */}
             <div className="space-y-2">
               <PasswordField
                 id="password"
@@ -194,7 +173,6 @@ const RegisterPage = () => {
               {formData.password && <PasswordStrengthIndicator password={formData.password} />}
             </div>
 
-            {/* Confirm Password */}
             <div className="space-y-2">
               <PasswordField
                 id="confirmPassword"
@@ -232,14 +210,14 @@ const RegisterPage = () => {
           <SocialAuthButton
             provider="google"
             onClick={handleGoogleSignIn}
-            disabled={isGoogleLoading || isEmailSignUpLoading || isGoogleAuthPending || isRegisterPending}
+            disabled={isGoogleLoading || isEmailSignUpLoading || isGoogleAuthPending || isRegisterPending || isGithubLoading || isGithubAuthPending}
             isLoading={isGoogleLoading || isGoogleAuthPending}
           />
           <SocialAuthButton
             provider="github"
-            onClick={() => {}}
-            disabled
-            className="opacity-70"
+            onClick={handleGithubSignIn}
+            disabled={isGithubLoading || isEmailSignUpLoading || isGithubAuthPending || isRegisterPending || isGoogleLoading || isGoogleAuthPending}
+            isLoading={isGithubLoading || isGithubAuthPending}
           />
         </div>
 

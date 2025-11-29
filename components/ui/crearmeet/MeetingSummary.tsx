@@ -1,33 +1,17 @@
+// components/CreateMeeting/MeetingSummary.tsx
 'use client';
 
 import React from 'react';
-import { Calendar, Clock } from 'lucide-react';
+import { Calendar, Clock, Users } from 'lucide-react';
 import { MeetingSummaryProps } from './types';
+import { redirect } from 'next/navigation';
 
-/**
- * MeetingSummary Component
- *
- * Displays a summary of the meeting before creation, including:
- * - Title
- * - Description
- * - Date
- * - Time
- * - Duration
- * - Participants (avatars)
- *
- * Also provides a button to trigger the creation of the meeting.
- *
- * param {MeetingSummaryProps} props - Component props
- * param {import('./types').MeetingFormData} props.formData - The current meeting form data
- * param {() => void} props.onCreateMeeting - Callback to create the meeting
- * returns {JSX.Element} Meeting summary display with create button
- */
-const MeetingSummary: React.FC<MeetingSummaryProps> = ({ formData, onCreateMeeting }) => {
-  /**
-   * Format a date string into localized string.
-   * param {string} dateString - ISO date string
-   * returns {string} Formatted date or fallback
-   */
+const MeetingSummary: React.FC<MeetingSummaryProps> = ({ 
+  formData, 
+  onCreateMeeting,
+  isCreating = false,
+  isConnected = false
+}) => {
   const formatDate = (dateString: string) => {
     if (!dateString) return 'No especificada';
     const date = new Date(dateString);
@@ -38,20 +22,11 @@ const MeetingSummary: React.FC<MeetingSummaryProps> = ({ formData, onCreateMeeti
     }).toUpperCase();
   };
 
-  /**
-   * Format a time string or return fallback.
-   * param {string} timeString - Time string
-   * returns {string} Formatted time or fallback
-   */
   const formatTime = (timeString: string) => {
     if (!timeString) return 'No especificada';
     return timeString;
   };
 
-  /**
-   * Check if the meeting form is valid for creation.
-   * returns {boolean} True if form is valid
-   */
   const isFormValid = () => {
     return formData.title.trim() !== '' &&
            formData.description.trim() !== '' &&
@@ -65,7 +40,7 @@ const MeetingSummary: React.FC<MeetingSummaryProps> = ({ formData, onCreateMeeti
       <h2 className="text-xl font-semibold text-white mb-4">Resumen de la reunión</h2>
 
       <div className="space-y-4">
-        {/* Title */}
+        {/* Título */}
         <div>
           <p className="text-gray-400 text-sm mb-1">Título:</p>
           <p className="text-white font-medium">
@@ -73,7 +48,7 @@ const MeetingSummary: React.FC<MeetingSummaryProps> = ({ formData, onCreateMeeti
           </p>
         </div>
 
-        {/* Description */}
+        {/* Descripción */}
         <div>
           <p className="text-gray-400 text-sm mb-1">Descripción:</p>
           <p className="text-white">
@@ -81,7 +56,7 @@ const MeetingSummary: React.FC<MeetingSummaryProps> = ({ formData, onCreateMeeti
           </p>
         </div>
 
-        {/* Date */}
+        {/* Fecha */}
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-zinc-800 rounded-lg flex items-center justify-center">
             <Calendar className="w-5 h-5 text-cyan-400" />
@@ -92,7 +67,7 @@ const MeetingSummary: React.FC<MeetingSummaryProps> = ({ formData, onCreateMeeti
           </div>
         </div>
 
-        {/* Time */}
+        {/* Hora */}
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-zinc-800 rounded-lg flex items-center justify-center">
             <Clock className="w-5 h-5 text-purple-400" />
@@ -103,7 +78,7 @@ const MeetingSummary: React.FC<MeetingSummaryProps> = ({ formData, onCreateMeeti
           </div>
         </div>
 
-        {/* Duration */}
+        {/* Duración */}
         <div>
           <p className="text-gray-400 text-sm mb-1">Duración:</p>
           <p className="text-white font-medium">
@@ -111,7 +86,7 @@ const MeetingSummary: React.FC<MeetingSummaryProps> = ({ formData, onCreateMeeti
           </p>
         </div>
 
-        {/* Participants */}
+        {/* Participantes */}
         <div className="flex items-center gap-3">
           <div className="flex -space-x-2">
             {formData.participants.slice(0, 3).map((participant, index) => (
@@ -148,16 +123,16 @@ const MeetingSummary: React.FC<MeetingSummaryProps> = ({ formData, onCreateMeeti
       {/* Create Button */}
       <button
         onClick={onCreateMeeting}
-        disabled={!isFormValid()}
+        disabled={!isFormValid() || isCreating || !isConnected}
         className={`
           w-full mt-6 py-3 rounded-lg font-semibold text-white transition-all
-          ${isFormValid()
+          ${isFormValid() && !isCreating && isConnected
             ? 'bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 shadow-lg shadow-cyan-500/20'
             : 'bg-zinc-800 cursor-not-allowed opacity-50'
           }
         `}
       >
-        Crear Reunión
+        {isCreating ? 'Creando...' : !isConnected ? 'Conectando...' : 'Crear Reunión'}
       </button>
     </div>
   );

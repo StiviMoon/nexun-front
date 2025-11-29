@@ -5,37 +5,22 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { X, Mail, Loader2 } from 'lucide-react';
 
-/**
- * RecuperarContrasenaPage component
- *
- * Renders a password recovery page where users can submit their email
- * to receive a password reset link. Handles loading state, success state,
- * and errors during submission.
- *
- * component
- * returns {JSX.Element} The rendered password recovery page
- */
 export default function RecuperarContrasenaPage() {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState('');
 
-  /**
-   * Handles form submission to send password recovery email.
-   *
-   * param {React.FormEvent} e - The form submission event
-   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
     try {
-      // TODO: Replace with actual email sending logic
+      // Aquí va tu lógica de envío de email
       // await sendPasswordResetEmail(email);
       
-      // Simulate delay for demonstration
+      // Simular delay
       await new Promise((resolve) => setTimeout(resolve, 1500));
       
       setIsSuccess(true);

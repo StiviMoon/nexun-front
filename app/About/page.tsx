@@ -1,20 +1,3 @@
-/**
- * #documentacion
- * SobreNexunPage Component
- *
- * This page renders the "About Nexun" section, including:
- * - A navigation bar with links to About, Login, and Sign Up pages.
- * - The main informational components: `SobreNexun` and `EquipoDesarrollo`.
- * - A footer displayed at the bottom of the page.
- *
- * Layout details:
- * The components are positioned using utility classes to create spacing effects
- * and background structure, ensuring a clean visual presentation.
- *
- * component
- * returns {JSX.Element} The rendered page containing Nexun's information sections.
- */
-
 import SobreNexun from '@/components/ui/AboutUs/SobreNex';
 import EquipoDesarrollo from '@/components/ui/AboutUs/teamNex';
 import Footer from '@/components/ui/Footer';

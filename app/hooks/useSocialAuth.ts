@@ -4,28 +4,17 @@ import { useRouter } from "next/navigation";
 import { useAuthWithQuery } from "@/hooks/useAuthWithQuery";
 
 type UseSocialAuthOptions = {
-  isLoading: boolean;
-  otherLoading: boolean;
+  isGoogleLoading: boolean;
+  isGithubLoading: boolean;
+  isBlocking: boolean;
 };
 
-/**
- * Custom hook to handle social authentication (Google Sign-In) logic.
- * Prevents multiple simultaneous sign-in attempts and redirects the user on success.
- *
- * param {UseSocialAuthOptions} options - Loading state flags to prevent duplicate actions.
- * returns {{ handleGoogleSignIn: () => Promise<void> }} - Function to trigger Google sign-in.
- */
-const useSocialAuth = ({ isLoading, otherLoading }: UseSocialAuthOptions) => {
+const useSocialAuth = ({ isGoogleLoading, isGithubLoading, isBlocking }: UseSocialAuthOptions) => {
   const router = useRouter();
-  const { signInWithGoogle } = useAuthWithQuery();
+  const { signInWithGoogle, signInWithGithub } = useAuthWithQuery();
 
-  /**
-   * Initiates Google sign-in process.
-   * Prevents execution if either loading flag is true.
-   * Redirects user to /dashboard upon successful authentication.
-   */
   const handleGoogleSignIn = async () => {
-    if (isLoading || otherLoading) {
+    if (isGoogleLoading || isBlocking) {
       return;
     }
 
@@ -33,13 +22,28 @@ const useSocialAuth = ({ isLoading, otherLoading }: UseSocialAuthOptions) => {
       await signInWithGoogle();
       router.push("/dashboard");
     } catch {
-      // Error handling is managed by the auth store
+      // handled by store
+    }
+  };
+
+  const handleGithubSignIn = async () => {
+    if (isGithubLoading || isBlocking) {
+      return;
+    }
+
+    try {
+      await signInWithGithub();
+      router.push("/dashboard");
+    } catch {
+      // Error handling is done in the auth store
     }
   };
 
   return {
-    handleGoogleSignIn
+    handleGoogleSignIn,
+    handleGithubSignIn
   };
 };
 
 export default useSocialAuth;
+

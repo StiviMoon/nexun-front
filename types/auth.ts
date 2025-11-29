@@ -1,7 +1,7 @@
 import { User } from "firebase/auth";
 import { UserProfile } from "./api";
 
-export type AuthErrorKey = "signIn" | "signUp" | "google" | "signOut";
+export type AuthErrorKey = "signIn" | "signUp" | "google" | "github" | "signOut";
 
 export type AuthErrors = Partial<Record<AuthErrorKey, string>>;
 
@@ -13,6 +13,7 @@ export type AuthState = {
   isEmailSignInLoading: boolean;
   isEmailSignUpLoading: boolean;
   isGoogleLoading: boolean;
+  isGithubLoading: boolean;
   isSignOutLoading: boolean;
   authErrors: AuthErrors;
   initializeAuthListener: () => void;
@@ -21,6 +22,7 @@ export type AuthState = {
   signInWithEmailPassword: (email: string, password: string) => Promise<void>;
   registerWithEmailPassword: (firstName: string, lastName: string, email: string, password: string, age: number) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  signInWithGithub: () => Promise<void>;
   signOutUser: () => Promise<void>;
   // Setters para React Query
   setCurrentUser: (user: UserProfile | null) => void;
@@ -28,6 +30,7 @@ export type AuthState = {
   setEmailSignInLoading: (loading: boolean) => void;
   setEmailSignUpLoading: (loading: boolean) => void;
   setGoogleLoading: (loading: boolean) => void;
+  setGithubLoading: (loading: boolean) => void;
   setSignOutLoading: (loading: boolean) => void;
 };
 
@@ -38,5 +41,6 @@ export type AuthActionState = Pick<
   | "signInWithEmailPassword"
   | "registerWithEmailPassword"
   | "signInWithGoogle"
+  | "signInWithGithub"
   | "signOutUser"
 >;

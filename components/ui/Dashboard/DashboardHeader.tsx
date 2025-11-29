@@ -1,19 +1,10 @@
+// components/Dashboard/DashboardHeader.tsx
 'use client';
 
 import React from 'react';
 import { Bell } from 'lucide-react';
 import { DashboardHeaderProps } from './types';
 
-/**
- * DashboardHeader component displays the greeting and user info at the top of the dashboard.
- * Includes a notification bell and user avatar.
- *
- * param {DashboardHeaderProps} props - Props for DashboardHeader
- * param {string} props.userName - Name of the current user
- * param {string} [props.userAvatar] - Optional URL for user avatar
- * param {() => void} [props.onNotificationClick] - Optional handler when notification bell is clicked
- * returns {JSX.Element} Rendered DashboardHeader component
- */
 const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   userName,
   userAvatar = 'https://api.dicebear.com/7.x/avataaars/svg?seed=default',

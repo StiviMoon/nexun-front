@@ -1,15 +1,5 @@
 import { Download } from 'lucide-react';
 import Image from 'next/image';
-
-/**
- * EquipoDesarrollo Component
- *
- * This component renders the development team section with team member profiles,
- * including their name, role, and photo. It also displays the current site version
- * and a button to download the user manual.
- *
- * returns {JSX.Element} A React component displaying the development team and site info
- */
 export default function EquipoDesarrollo() {
   const team = [
     { name: "Johan Steven Rodriguez Lopez", role: "Backend Developer", img: "/team/maniacoo.jpeg" },

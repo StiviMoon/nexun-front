@@ -1,40 +1,3 @@
-/**
- * ===========================================
- * FORM FIELD COMPONENT
- * ===========================================
- *
- * A reusable input field component for forms.
- * It combines a label, input, and optional icon for consistent styling.
- *
- * Main responsibilities:
- * - Display a label for the input field.
- * - Render an input element with type, value, placeholder, and other props.
- * - Optionally render an icon inside the input field.
- * - Support accessibility with proper aria-labels.
- * - Allow additional styling via the `className` prop.
- *
- * Props:
- * typedef {Object} FormFieldProps
- * property {string} id - Unique identifier for the input field.
- * property {string} label - Label text displayed above the input.
- * property {string} [type='text'] - HTML input type (text, password, email, etc.).
- * property {string} [name] - Name attribute of the input element.
- * property {string} value - Current value of the input.
- * property {(event: ChangeEvent<HTMLInputElement>) => void} onChange - Change event handler.
- * property {string} [placeholder] - Placeholder text displayed inside the input.
- * property {string} [autoComplete] - Browser autocomplete attribute.
- * property {boolean} [required=false] - Marks the field as required.
- * property {ReactNode} [icon] - Optional icon displayed inside the input.
- * property {string} [className] - Additional CSS classes for customization.
- * property {string} [ariaLabel] - ARIA label for accessibility; defaults to the label.
- * property {string | number} [min] - Minimum value for numeric inputs.
- * property {(event: React.KeyboardEvent<HTMLInputElement>) => void} [onKeyDown] - Optional keyboard event handler.
- *
- * Usage Notes:
- * - Typically used in authentication or general form pages.
- * - Integrates with Input and Label UI components for consistent design.
- */
-
 "use client";
 
 import { ChangeEvent, ReactNode } from "react";
@@ -110,3 +73,4 @@ const FormField = ({
 };
 
 export default FormField;
+

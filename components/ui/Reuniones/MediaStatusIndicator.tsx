@@ -4,35 +4,12 @@ import { MicOff, Mic, VideoOff, Video } from 'lucide-react';
 import { MediaStatus } from '@/types/meetings';
 
 interface MediaStatusIndicatorProps {
-  /**
-   * Current status of microphone and camera.
-   */
   status: MediaStatus;
-
-  /**
-   * Optional callback to toggle microphone state.
-   */
   onToggleMic?: () => void;
-
-  /**
-   * Optional callback to toggle camera state.
-   */
   onToggleCamera?: () => void;
-
-  /**
-   * Whether the buttons should be interactive (clickable) or read-only.
-   * Defaults to false.
-   */
   interactive?: boolean;
 }
 
-/**
- * Displays the current microphone and camera status.
- * If interactive is true, allows toggling the mic and camera.
- *
- * param {MediaStatusIndicatorProps} props
- * returns JSX.Element
- */
 export function MediaStatusIndicator({
   status,
   onToggleMic,
