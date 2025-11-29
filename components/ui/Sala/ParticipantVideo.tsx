@@ -1,36 +1,45 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { User, MicOff, VideoOff, Mic, Video } from 'lucide-react';
 import { Participant } from '@/types/meetingRoom';
 
 interface ParticipantVideoProps {
-  /** Participant object containing name, avatar, mic/camera status */
   participant: Participant;
-  /** If true, renders the participant as the main video (larger) */
   isMain?: boolean;
-  /** If true, displays audio waveform instead of avatar when camera is off */
   showWaveform?: boolean;
+  localStream?: MediaStream | null; // <-- ok
 }
 
 /**
- * ParticipantVideo component
- *
- * Renders a participant's video tile in a meeting.
- * Displays:
- * - Video element if camera is on
- * - Avatar or waveform if camera is off
- * - Participant name and mic/camera status
- *
- * param participant - The participant data
- * param isMain - Whether this is the main participant (larger view)
- * param showWaveform - Show a waveform animation if camera is off
+ * ParticipantVideo actualizada para mostrar cámara real del usuario local
  */
 export function ParticipantVideo({
   participant,
   isMain = false,
   showWaveform = false,
+  localStream,
 }: ParticipantVideoProps) {
+  
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const isLocalUser = participant.id === 'local-user';
+  const cameraOff = participant.isCameraOff;
+
+  /**
+   * asignar el stream local solo si:
+   * - es el participante local
+   * - hay stream
+   */
+  useEffect(() => {
+    if (isLocalUser && localStream && videoRef.current) {
+      // solo reasignar si el stream realmente cambió
+      if (videoRef.current.srcObject !== localStream) {
+        videoRef.current.srcObject = localStream;
+      }
+    }
+  }, [isLocalUser, localStream]);
+
   return (
     <div
       className={`
@@ -38,8 +47,16 @@ export function ParticipantVideo({
         ${isMain ? 'h-full' : 'aspect-video'}
       `}
     >
-      {/* Video or Avatar */}
-      {participant.isCameraOff ? (
+      {/* VIDEO O AVATAR */}
+      {!cameraOff ? (
+        <video
+          ref={videoRef}
+          className="absolute inset-0 w-full h-full object-cover"
+          autoPlay
+          playsInline
+          muted={isLocalUser}
+        />
+      ) : (
         <div className="absolute inset-0 flex items-center justify-center bg-zinc-800">
           {showWaveform ? (
             <Waveform />
@@ -62,48 +79,27 @@ export function ParticipantVideo({
             </div>
           )}
         </div>
-      ) : (
-        <video
-          className="absolute inset-0 w-full h-full object-cover"
-          autoPlay
-          muted
-          playsInline
-        />
       )}
 
-      {/* Bottom Bar - Name & Status */}
+      {/* BARRA INFERIOR */}
       <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
         <div className="flex items-center justify-between">
           <span className={`text-white ${isMain ? 'text-base' : 'text-xs'} font-medium`}>
-            {participant.name}
+            {isLocalUser ? 'Tú' : participant.name}
           </span>
 
-          {/* Status Icons */}
+          {/* ICONOS */}
           <div className="flex items-center gap-2">
-            {/* Mic Icon */}
-            {isMain ? (
-              participant.isMuted ? (
-                <MicOff className={`text-zinc-400 ${isMain ? 'w-5 h-5' : 'w-3.5 h-3.5'}`} />
-              ) : (
-                <Mic className={`text-green-400 ${isMain ? 'w-5 h-5' : 'w-3.5 h-3.5'}`} />
-              )
+            {participant.isMuted ? (
+              <MicOff className={`${isMain ? 'w-5 h-5' : 'w-3.5 h-3.5'} text-zinc-400`} />
             ) : (
-              participant.isMuted && (
-                <MicOff className={`text-zinc-400 ${isMain ? 'w-5 h-5' : 'w-3.5 h-3.5'}`} />
-              )
+              <Mic className={`${isMain ? 'w-5 h-5' : 'w-3.5 h-3.5'} text-green-400`} />
             )}
 
-            {/* Camera Icon */}
-            {isMain ? (
-              participant.isCameraOff ? (
-                <VideoOff className={`text-zinc-400 ${isMain ? 'w-5 h-5' : 'w-3.5 h-3.5'}`} />
-              ) : (
-                <Video className={`text-green-400 ${isMain ? 'w-5 h-5' : 'w-3.5 h-3.5'}`} />
-              )
+            {participant.isCameraOff ? (
+              <VideoOff className={`${isMain ? 'w-5 h-5' : 'w-3.5 h-3.5'} text-zinc-400`} />
             ) : (
-              participant.isCameraOff && (
-                <VideoOff className={`text-zinc-400 ${isMain ? 'w-5 h-5' : 'w-3.5 h-3.5'}`} />
-              )
+              <Video className={`${isMain ? 'w-5 h-5' : 'w-3.5 h-3.5'} text-green-400`} />
             )}
           </div>
         </div>
@@ -112,17 +108,12 @@ export function ParticipantVideo({
   );
 }
 
-/**
- * Waveform component
- *
- * Displays a small animated waveform to indicate audio activity
- */
+/* Waveform */
 function Waveform() {
   return (
     <div className="flex items-center gap-1">
       {[...Array(9)].map((_, i) => {
-        // Deterministic height per bar to avoid SSR/Client hydration mismatch
-        const height = 20 + ((i * 13) % 40); // range ~20-59
+        const height = 20 + ((i * 13) % 40);
         return (
           <div
             key={i}
