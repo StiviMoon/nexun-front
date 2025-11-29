@@ -90,7 +90,16 @@ export default function SalaPage({ params }: PageProps) {
 
   // Gestionar chat asociado a la sala de video
   useEffect(() => {
+    console.log(`💬 [SALA_PAGE] Verificando chat - currentRoom:`, currentRoom);
+    console.log(`💬 [SALA_PAGE] chatRoomId: ${currentRoom?.chatRoomId || 'none'}, isChatConnected: ${isChatConnected}`);
+    
     if (!currentRoom?.chatRoomId || !isChatConnected) {
+      if (!currentRoom?.chatRoomId) {
+        console.warn(`⚠️ [SALA_PAGE] No hay chatRoomId en currentRoom. Room data:`, currentRoom);
+      }
+      if (!isChatConnected) {
+        console.warn(`⚠️ [SALA_PAGE] Chat no está conectado`);
+      }
       return;
     }
 
@@ -225,7 +234,8 @@ export default function SalaPage({ params }: PageProps) {
           }
         }
       } catch (err) {
-        console.warn(`No se pudo obtener info del usuario ${userId} desde Firestore:`, err);
+        // Silenciar el error de permisos - es esperado si el usuario no tiene acceso
+        // console.warn(`No se pudo obtener info del usuario ${userId} desde Firestore:`, err);
       }
       
       // Fallback: intentar obtener desde Auth (solo funciona para el usuario actual)
@@ -241,9 +251,11 @@ export default function SalaPage({ params }: PageProps) {
         // Ignorar errores de Auth
       }
       
-      // Último fallback
+      // Último fallback - usar nombre del participante del backend si está disponible
+      const participant = safeVideoParticipants.find((p) => p.userId === userId);
       return {
-        name: `Usuario ${userId.slice(0, 8)}`,
+        name: participant?.userName || participant?.userEmail || `Usuario ${userId.slice(0, 8)}`,
+        avatar: undefined, // No hay avatar disponible sin permisos de Firestore
       };
     };
 
@@ -386,12 +398,13 @@ export default function SalaPage({ params }: PageProps) {
       return [];
     }
     const roomMessages = chatMessages[currentRoom.chatRoomId] || [];
-    // Ordenar mensajes por timestamp
-    return [...roomMessages].sort((a, b) => {
+    const sorted = [...roomMessages].sort((a, b) => {
       const timeA = a.timestamp instanceof Date ? a.timestamp.getTime() : new Date(a.timestamp).getTime();
       const timeB = b.timestamp instanceof Date ? b.timestamp.getTime() : new Date(b.timestamp).getTime();
       return timeA - timeB;
     });
+    console.log(`💬 [SALA_PAGE] Mensajes actualizados para sala ${currentRoom.chatRoomId}: ${sorted.length} mensajes`);
+    return sorted;
   }, [currentRoom?.chatRoomId, chatMessages]);
 
   const sendMessage = (content: string) => {
