@@ -67,14 +67,18 @@ export const useChatStore = create<ChatStoreState>((set) => ({
   addMessage: (message) =>
     set((state) => {
       const roomMessages = state.messages[message.roomId] || [];
-      if (roomMessages.some((m) => m.id === message.id)) {
+      const messageExists = roomMessages.some((m) => m.id === message.id);
+      if (messageExists) {
+        console.log(`⚠️ [ChatStore] Mensaje ${message.id} ya existe, ignorando duplicado`);
         return state;
       }
+      const updatedMessages = {
+        ...state.messages,
+        [message.roomId]: [...roomMessages, message],
+      };
+      console.log(`✅ [ChatStore] Mensaje agregado. Total en sala ${message.roomId}: ${updatedMessages[message.roomId].length}`);
       return {
-        messages: {
-          ...state.messages,
-          [message.roomId]: [...roomMessages, message],
-        },
+        messages: updatedMessages,
       };
     }),
   setConnected: (value) =>

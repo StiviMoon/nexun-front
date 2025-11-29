@@ -225,7 +225,7 @@ export class VideoService {
   }
 
   // Create a video room
-  createRoom(name: string, description?: string, maxParticipants = 50, visibility: "public" | "private" = "private", createChat = true): void {
+  createRoom(name: string, description?: string, maxParticipants = 10, visibility: "public" | "private" = "private", createChat = true): void {
     if (!this.socket?.connected) {
       throw new Error("Not connected to video service");
     }

@@ -86,7 +86,7 @@ const CreateMeeting: React.FC<CreateMeetingProps> = ({
       const roomId = await createRoom(
         formData.title,
         formData.description || undefined,
-        4, // maxParticipants - máximo 4 personas
+        10, // maxParticipants - máximo 10 personas
         "public", // visibility - siempre pública pero con código
         true // createChat - crear chat privado asociado
       );

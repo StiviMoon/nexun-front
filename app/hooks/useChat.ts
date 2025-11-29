@@ -82,8 +82,15 @@ export const useChat = (useGateway = false): UseChatReturn => {
         });
 
         chatService.onMessage((message: ChatMessage) => {
-          console.log("💬 New message:", message);
+          console.log("💬 [CHAT] Nuevo mensaje recibido:", {
+            id: message.id,
+            roomId: message.roomId,
+            senderId: message.senderId,
+            content: message.content?.substring(0, 50),
+            timestamp: message.timestamp
+          });
           addMessage(message);
+          console.log("✅ [CHAT] Mensaje agregado al store");
         });
 
         chatService.onRoomJoined((data: { roomId: string; room: ChatRoom }) => {
