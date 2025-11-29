@@ -13,13 +13,12 @@ interface UseMeetingRoomProps {
 export function useMeetingRoom({ roomId }: UseMeetingRoomProps) {
   const { currentUser } = useAuthWithQuery();
   const localVideoRef = useRef<HTMLVideoElement>(null);
-  
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [activeTab, setActiveTab] = useState<SidebarTab>('participants');
   const [activeSpeakerId, setActiveSpeakerId] = useState<string | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
 
-  // Usar el hook de video call que maneja WebRTC
   const {
     isConnected,
     isConnecting,
@@ -34,49 +33,54 @@ export function useMeetingRoom({ roomId }: UseMeetingRoomProps) {
     toggleAudio,
     toggleVideo,
     getLocalStream,
-  } = useVideoCall(true); // useGateway = true
+  } = useVideoCall(true);
 
-  // Conectar y unirse a la sala automáticamente
+  // conectar y unirse automaticamente
   useEffect(() => {
     if (!currentUser) return;
 
     const initializeRoom = async () => {
       try {
-        // Conectar al servicio de video
         if (!isConnected && !isConnecting) {
           await connect();
         }
 
-        // Esperar un momento para que la conexión se establezca
         if (isConnected) {
-          // Obtener stream local
           await getLocalStream();
-          
-          // Unirse a la sala
           await joinRoom(roomId);
         }
       } catch (error) {
-        console.error('Error inicializando sala:', error);
+        console.error('error inicializando sala:', error);
       }
     };
 
     initializeRoom();
-
     return () => {
-      // Limpiar al desmontar
       leaveVideoRoom();
     };
-  }, [currentUser, roomId, isConnected, isConnecting, connect, joinRoom, leaveVideoRoom, getLocalStream]);
+  }, [
+    currentUser,
+    roomId,
+    isConnected,
+    isConnecting,
+    connect,
+    joinRoom,
+    leaveVideoRoom,
+    getLocalStream
+  ]);
 
-  // Mapear VideoParticipant a Participant con streams
+  // mapear participantes
   useEffect(() => {
-    const mappedParticipants: Participant[] = [];
+    const mapped: Participant[] = [];
 
-    // Agregar participante local
     if (currentUser && localStream) {
-      mappedParticipants.push({
+      mapped.push({
         id: currentUser.uid,
-        name: currentUser.displayName || currentUser.firstName || currentUser.email || 'Tú',
+        name:
+          currentUser.displayName ||
+          (currentUser as any).firstName ||
+          currentUser.email ||
+          'tu',
         avatar: currentUser.photoURL || undefined,
         isMuted: !isAudioEnabled,
         isCameraOff: !isVideoEnabled,
@@ -84,58 +88,104 @@ export function useMeetingRoom({ roomId }: UseMeetingRoomProps) {
       });
     }
 
-    // Agregar participantes remotos
-    videoParticipants.forEach((videoParticipant) => {
-      const remoteStream = remoteStreams.get(videoParticipant.userId);
-      
-      mappedParticipants.push({
-        id: videoParticipant.userId,
-        name: videoParticipant.userName || `Usuario ${videoParticipant.userId.slice(0, 8)}`,
-        isMuted: !videoParticipant.isAudioEnabled,
-        isCameraOff: !videoParticipant.isVideoEnabled,
+    videoParticipants.forEach((vp) => {
+      const remoteStream = remoteStreams.get(vp.userId);
+      mapped.push({
+        id: vp.userId,
+        name: vp.userName || `usuario ${vp.userId.slice(0, 8)}`,
+        isMuted: !vp.isAudioEnabled,
+        isCameraOff: !vp.isVideoEnabled,
         stream: remoteStream || undefined,
       });
     });
 
-    setParticipants(mappedParticipants);
-  }, [currentUser, localStream, videoParticipants, remoteStreams, isAudioEnabled, isVideoEnabled]);
+    setParticipants(mapped);
+  }, [
+    currentUser,
+    localStream,
+    videoParticipants,
+    remoteStreams,
+    isAudioEnabled,
+    isVideoEnabled
+  ]);
 
-  // Asignar stream local al video ref
+  // asignar stream local al video ref
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
       localVideoRef.current.play().catch((err) => {
-        console.warn('Error reproduciendo video local:', err);
+        console.warn('error reproduciendo video local:', err);
       });
     }
   }, [localStream]);
 
+  // mutear microfono
   const toggleMute = useCallback(() => {
     toggleAudio(!isAudioEnabled);
   }, [toggleAudio, isAudioEnabled]);
 
-  const toggleCamera = useCallback(() => {
-    toggleVideo(!isVideoEnabled);
-  }, [toggleVideo, isVideoEnabled]);
+  // encender/apagar camara usando replaceTrack
+  const toggleCamera = useCallback(async () => {
+    try {
+      if (!localStream) {
+        await getLocalStream();
+      }
 
+      const stream = localStream || (localVideoRef.current?.srcObject as MediaStream | null);
+      if (!stream) {
+        console.warn('[toggleCamera] no hay stream local');
+        return;
+      }
+
+      const videoTrack = stream.getVideoTracks()[0];
+      if (!videoTrack) {
+        console.warn('[toggleCamera] no existe el track de video');
+        return;
+      }
+
+      if (isVideoEnabled) {
+        // desactivar track local
+        videoTrack.enabled = false;
+        toggleVideo(false);
+      } else {
+        // activar track local
+        videoTrack.enabled = true;
+        toggleVideo(true);
+      }
+
+      // If peer senders need updating, handle that inside the useVideoCall hook and expose a method;
+      // keeping this hook free of direct peer connection manipulation avoids referencing pcMap here.
+    } catch (err) {
+      console.error('error toggling camera:', err);
+    }
+  }, [localStream, isVideoEnabled, toggleVideo, getLocalStream]);
+  // salir de la sala
   const leaveRoom = useCallback(() => {
     leaveVideoRoom();
   }, [leaveVideoRoom]);
 
-  const sendMessage = useCallback((content: string) => {
-    const newMessage: ChatMessage = {
-      id: Date.now().toString(),
-      roomId,
-      senderId: currentUser?.uid || 'current-user',
-      senderName: currentUser?.displayName || currentUser?.firstName || 'Tú',
-      content,
-      timestamp: new Date(),
-      type: 'text',
-    };
-    setMessages((prev) => [...prev, newMessage]);
-  }, [roomId, currentUser]);
+  // chat
+  const sendMessage = useCallback(
+    (content: string) => {
+      const newMessage: ChatMessage = {
+        id: Date.now().toString(),
+        roomId,
+        senderId: currentUser?.uid || 'current-user',
+        senderName:
+          currentUser?.displayName ||
+          (currentUser as any)?.firstName ||
+          'tu',
+        content,
+        timestamp: new Date(),
+        type: 'text',
+      };
+      setMessages((prev) => [...prev, newMessage]);
+    },
+    [roomId, currentUser]
+  );
 
   return {
+
     participants,
     messages,
     activeTab,
