@@ -219,23 +219,36 @@ export default function SalaPage({ params }: PageProps) {
 
     // Función para obtener info del usuario (nombre y foto)
     const fetchUserInfo = async (userId: string): Promise<{ name: string; avatar?: string }> => {
-      // Primero intentar obtener desde Firestore
+      // Primero intentar obtener desde Firestore con timeout
       try {
         const app = getFirebaseApp();
         if (app) {
           const db = getFirestore(app);
-          const userDoc = await getDoc(doc(db, 'users', userId));
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            return {
-              name: userData.displayName || userData.email || userData.name || `Usuario ${userId.slice(0, 8)}`,
-              avatar: userData.photoURL || userData.avatar || undefined,
-            };
+          
+          // Usar Promise.race para timeout de 3 segundos
+          const userDocPromise = getDoc(doc(db, 'users', userId));
+          const timeoutPromise = new Promise<never>((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout')), 3000)
+          );
+          
+          try {
+            const userDoc = await Promise.race([userDocPromise, timeoutPromise]);
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              const avatar = userData.photoURL || userData.avatar || userData.profilePicture;
+              return {
+                name: userData.displayName || userData.name || userData.email || `Usuario ${userId.slice(0, 8)}`,
+                avatar: avatar || undefined,
+              };
+            }
+          } catch (timeoutErr) {
+            // Timeout o error de permisos - continuar con fallback
+            console.warn(`⚠️ [SALA_PAGE] Timeout o error obteniendo info de usuario ${userId} desde Firestore`);
           }
         }
       } catch (err) {
         // Silenciar el error de permisos - es esperado si el usuario no tiene acceso
-        // console.warn(`No se pudo obtener info del usuario ${userId} desde Firestore:`, err);
+        console.warn(`⚠️ [SALA_PAGE] No se pudo obtener info del usuario ${userId} desde Firestore:`, err);
       }
       
       // Fallback: intentar obtener desde Auth (solo funciona para el usuario actual)

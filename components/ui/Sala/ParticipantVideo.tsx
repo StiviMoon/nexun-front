@@ -334,8 +334,9 @@ export function ParticipantVideo({
           playsInline
           controls={false} // No mostrar controles
           style={{
-            opacity: videoTrackEnabled ? 1 : 0.3, // Mostrar con opacidad reducida si el track está deshabilitado
+            opacity: videoTrackEnabled ? 1 : 0, // Ocultar completamente si el track está deshabilitado
             backgroundColor: '#000', // Fondo negro para evitar parpadeos
+            transition: 'opacity 0.3s ease-in-out', // Transición suave
           }}
           onLoadedMetadata={() => {
             console.log(`📹 [ParticipantVideo] onLoadedMetadata para ${participant.name}`);
@@ -407,9 +408,9 @@ export function ParticipantVideo({
         />
       )}
       
-      {/* Avatar - Mostrar cuando no hay stream o cuando el video track está deshabilitado */}
-      {(!participant.stream || !videoTrackEnabled) && (
-        <div className="absolute inset-0 flex items-center justify-center bg-zinc-800">
+      {/* Avatar - Mostrar cuando no hay stream, cuando el video track está deshabilitado, o cuando el video está en negro */}
+      {(!participant.stream || !videoTrackEnabled || (participant.stream && participant.stream.getVideoTracks().length === 0)) && (
+        <div className="absolute inset-0 flex items-center justify-center bg-zinc-800 z-20">
           {showWaveform ? (
             <Waveform />
           ) : participant.avatar ? (
@@ -421,6 +422,14 @@ export function ParticipantVideo({
                 className="object-cover"
                 sizes={isMain ? '128px' : '64px'}
                 priority={isMain}
+                onError={(e) => {
+                  console.warn(`⚠️ [ParticipantVideo] Error cargando avatar de ${participant.name}:`, e);
+                  // Si falla la carga de la imagen, mostrar el icono por defecto
+                  const target = e.target as HTMLImageElement;
+                  if (target.parentElement) {
+                    target.style.display = 'none';
+                  }
+                }}
               />
             </div>
           ) : (
