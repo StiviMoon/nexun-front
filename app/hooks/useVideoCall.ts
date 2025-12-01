@@ -276,6 +276,13 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
         const receivers = pc.getReceivers();
         log(`📡 [Peer Connect] Total receivers: ${receivers.length}`);
         
+        // Verificar estado de la conexión
+        log(`📡 [Peer Connect] Estado de conexión:`, {
+          connectionState: pc.connectionState,
+          iceConnectionState: pc.iceConnectionState,
+          signalingState: pc.signalingState
+        });
+        
         receivers.forEach((receiver, idx) => {
           if (receiver.track) {
             log(`📡 [Peer Connect] Receiver ${idx} track:`, {
@@ -303,12 +310,34 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
                 
                 addRemoteStream(targetUserId, streamToUse);
               }
+            } else {
+              // Si el track no está live, esperar a que lo esté
+              const handleStateChange = () => {
+                if (receiver.track && receiver.track.readyState === 'live') {
+                  log(`📹 [Peer Connect] Track ${receiver.track.id} ahora está live`);
+                  const existingStream = useVideoStore.getState().remoteStreams.get(targetUserId);
+                  const streamToUse = existingStream || new MediaStream();
+                  const trackExists = streamToUse.getTracks().some(t => t.id === receiver.track!.id);
+                  
+                  if (!trackExists) {
+                    streamToUse.addTrack(receiver.track);
+                    if (!receiver.track.enabled) {
+                      receiver.track.enabled = true;
+                    }
+                    addRemoteStream(targetUserId, streamToUse);
+                  }
+                  
+                  receiver.track.removeEventListener('ended', handleStateChange);
+                }
+              };
+              
+              receiver.track.addEventListener('ended', handleStateChange);
             }
           }
         });
 
-        // Agregar listener para nuevos tracks
-        pc.addEventListener('track', (event) => {
+        // Agregar listener para nuevos tracks (esto es crítico para recibir tracks)
+        const trackHandler = (event: RTCTrackEvent) => {
           log(`📹 [Peer Connect] Nuevo track recibido de ${targetUserId}:`, {
             trackId: event.track.id,
             kind: event.track.kind,
@@ -316,6 +345,12 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
             readyState: event.track.readyState,
             streamsCount: event.streams.length
           });
+          
+          // Asegurar que el track esté habilitado inmediatamente
+          if (event.track.readyState === 'live' && !event.track.enabled) {
+            event.track.enabled = true;
+            log(`🔄 [Peer Connect] Track ${event.track.id} habilitado en trackHandler`);
+          }
           
           if (event.streams && event.streams.length > 0) {
             handleRemoteStream(event.streams[0], targetUserId, addRemoteStream, setParticipants);
@@ -328,11 +363,16 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
               streamToUse.addTrack(event.track);
               if (!event.track.enabled && event.track.readyState === 'live') {
                 event.track.enabled = true;
+                log(`🔄 [Peer Connect] Track ${event.track.id} habilitado en trackHandler (sin streams)`);
               }
               handleRemoteStream(streamToUse, targetUserId, addRemoteStream, setParticipants);
             }
           }
-        });
+        };
+        
+        // Remover listener anterior si existe para evitar duplicados
+        pc.removeEventListener('track', trackHandler);
+        pc.addEventListener('track', trackHandler);
       });
 
       peer.on("signal", (data) => {
@@ -349,8 +389,12 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
         }
       });
 
+      // Configurar ontrack directamente en RTCPeerConnection como respaldo
       const pc = (peer as Peer.Instance & { _pc?: RTCPeerConnection })._pc;
       if (pc) {
+        // Remover handler anterior si existe
+        pc.ontrack = null;
+        
         pc.ontrack = (event) => {
           log(`📹 [ontrack] Track recibido de ${targetUserId}:`, {
             trackId: event.track.id,
@@ -359,6 +403,12 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
             readyState: event.track.readyState,
             streamsCount: event.streams.length
           });
+          
+          // Asegurar que el track esté habilitado inmediatamente
+          if (event.track.readyState === 'live' && !event.track.enabled) {
+            event.track.enabled = true;
+            log(`🔄 [ontrack] Track ${event.track.id} habilitado`);
+          }
           
           if (event.streams && event.streams.length > 0) {
             handleRemoteStream(event.streams[0], targetUserId, addRemoteStream, setParticipants);
@@ -371,12 +421,27 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
               streamToUse.addTrack(event.track);
               if (!event.track.enabled && event.track.readyState === 'live') {
                 event.track.enabled = true;
-                log(`🔄 [ontrack] Track ${event.track.id} habilitado`);
+                log(`🔄 [ontrack] Track ${event.track.id} habilitado (sin streams)`);
               }
               handleRemoteStream(streamToUse, targetUserId, addRemoteStream, setParticipants);
             }
           }
         };
+        
+        // También agregar listener de eventos de conexión para debugging
+        pc.addEventListener('connectionstatechange', () => {
+          log(`📡 [Peer] Estado de conexión cambió para ${targetUserId}:`, {
+            connectionState: pc.connectionState,
+            iceConnectionState: pc.iceConnectionState
+          });
+        });
+        
+        pc.addEventListener('iceconnectionstatechange', () => {
+          log(`🧊 [Peer] Estado ICE cambió para ${targetUserId}:`, {
+            iceConnectionState: pc.iceConnectionState,
+            connectionState: pc.connectionState
+          });
+        });
       }
 
       peer.on("stream", (remoteStream) => {
@@ -389,10 +454,20 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
       });
 
       peer.on("error", (err) => {
+        const errorMessage = err instanceof Error ? err.message : String(err);
         logError(`Error en peer connection con ${targetUserId}:`, err);
-        if (!(err instanceof Error && err.message.includes('Connection failed'))) {
-          const peer = peersRef.current.get(targetUserId);
-          if (peer) peer.destroy();
+        
+        // No destruir el peer si es un error de conexión temporal
+        // Los errores de conexión pueden ser temporales y el peer puede recuperarse
+        if (errorMessage.includes('Connection failed') || errorMessage.includes('ICE')) {
+          log(`⚠️ [Peer Error] Error de conexión temporal con ${targetUserId}, intentando recuperar...`);
+          return;
+        }
+        
+        // Para otros errores, limpiar el peer
+        const peer = peersRef.current.get(targetUserId);
+        if (peer) {
+          peer.destroy();
           peersRef.current.delete(targetUserId);
           removeRemoteStream(targetUserId);
         }
@@ -748,8 +823,13 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
       });
 
       socket.on("connect_error", (err) => {
+        logError("Socket connection error:", err);
         setConnecting(false);
-        setError({ message: err.message || "Failed to connect", code: "CONNECTION_ERROR" });
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        setError({ 
+          message: errorMessage || "Error de conexión. Verifica que el servicio esté corriendo.", 
+          code: "CONNECTION_ERROR" 
+        });
       });
     } catch (err) {
       logError("Failed to connect:", err);
