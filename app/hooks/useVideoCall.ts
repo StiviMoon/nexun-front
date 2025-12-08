@@ -37,14 +37,30 @@ const getCurrentUserId = (): string | null => {
 
 const DEBUG = process.env.NODE_ENV === 'development';
 
+/**
+ * Log de desarrollo (solo en modo desarrollo)
+ * @param {string} message - Mensaje a loguear
+ * @param {...unknown} args - Argumentos adicionales
+ */
 const log = (message: string, ...args: unknown[]) => {
   if (DEBUG) console.log(message, ...args);
 };
 
+/**
+ * Log de errores
+ * @param {string} message - Mensaje de error
+ * @param {...unknown} args - Argumentos adicionales
+ */
 const logError = (message: string, ...args: unknown[]) => {
   console.error(message, ...args);
 };
 
+/**
+ * Actualiza el estado de un participante específico
+ * @param {string} userId - ID del usuario a actualizar
+ * @param {Partial<VideoParticipant>} updates - Actualizaciones a aplicar
+ * @param {(participants: VideoParticipant[]) => void} setParticipants - Función para actualizar participantes
+ */
 const updateParticipantState = (
   userId: string,
   updates: Partial<VideoParticipant>,
@@ -58,6 +74,15 @@ const updateParticipantState = (
   setParticipants(updatedParticipants);
 };
 
+/**
+ * Maneja un stream remoto recibido, detectando si es de cámara o pantalla compartida
+ * y almacenándolo en el store correspondiente
+ * @param {MediaStream} stream - Stream de medios recibido
+ * @param {string} userId - ID del usuario que envía el stream
+ * @param {(userId: string, stream: MediaStream) => void} addRemoteStream - Función para agregar stream de cámara
+ * @param {(userId: string, stream: MediaStream) => void} addRemoteScreenStream - Función para agregar stream de pantalla
+ * @param {(participants: VideoParticipant[]) => void} setParticipants - Función para actualizar participantes
+ */
 const handleRemoteStream = (
   stream: MediaStream,
   userId: string,
@@ -65,7 +90,6 @@ const handleRemoteStream = (
   addRemoteScreenStream: (userId: string, stream: MediaStream) => void,
   setParticipants: (participants: VideoParticipant[]) => void
 ) => {
-  // Detectar si es un stream de pantalla o cámara
   const videoTracks = stream.getVideoTracks();
   const isScreenStream = videoTracks.some(track => {
     const settings = track.getSettings ? track.getSettings() : {};
@@ -140,30 +164,83 @@ const handleRemoteStream = (
   }
 };
 
+/**
+ * Retorno del hook useVideoCall
+ * @interface UseVideoCallReturn
+ */
 interface UseVideoCallReturn {
+  /** Estado de conexión al servidor */
   isConnected: boolean;
+  /** Estado de conexión en progreso */
   isConnecting: boolean;
+  /** Error actual si existe */
   error: { message: string; code?: string } | null;
+  /** Sala de video actual */
   currentRoom: VideoRoom | null;
+  /** Lista de participantes en la sala */
   participants: VideoParticipant[];
+  /** Stream de cámara local */
   localStream: MediaStream | null;
+  /** Stream de pantalla compartida local */
   localScreenStream: MediaStream | null;
+  /** Map de streams remotos de cámara (userId -> MediaStream) */
   remoteStreams: Map<string, MediaStream>;
+  /** Map de streams remotos de pantalla (userId -> MediaStream) */
   remoteScreenStreams: Map<string, MediaStream>;
+  /** Estado del audio (habilitado/deshabilitado) */
   isAudioEnabled: boolean;
+  /** Estado del video (habilitado/deshabilitado) */
   isVideoEnabled: boolean;
+  /** Estado de pantalla compartida (activa/inactiva) */
   isScreenSharing: boolean;
+  /** Conecta al servidor de video */
   connect: () => Promise<void>;
+  /** Desconecta del servidor de video */
   disconnect: () => void;
+  /** Crea una nueva sala de video */
   createRoom: (name: string, description?: string, maxParticipants?: number, visibility?: "public" | "private", createChat?: boolean) => Promise<string | null>;
+  /** Se une a una sala de video existente */
   joinRoom: (roomId: string) => Promise<void>;
+  /** Abandona la sala actual */
   leaveRoom: () => void;
+  /** Activa/desactiva el audio */
   toggleAudio: (enabled: boolean) => void;
+  /** Activa/desactiva el video (solo cámara, no pantalla) */
   toggleVideo: (enabled: boolean) => void;
+  /** Activa/desactiva la pantalla compartida */
   toggleScreenShare: (enabled: boolean) => Promise<void>;
+  /** Obtiene el stream local de cámara y micrófono */
   getLocalStream: () => Promise<MediaStream | null>;
 }
 
+/**
+ * Hook principal para gestionar videollamadas usando WebRTC y Socket.IO
+ * 
+ * Maneja:
+ * - Conexión al servidor de video
+ * - Creación y unión a salas
+ * - Gestión de streams locales y remotos (cámara y pantalla separados)
+ * - Controles de audio, video y pantalla compartida
+ * - Conexiones peer-to-peer usando simple-peer
+ * 
+ * @param {boolean} [useGateway=false] - Si usar gateway para la conexión
+ * @returns {UseVideoCallReturn} Objeto con estado y funciones de control
+ * 
+ * @example
+ * ```ts
+ * const {
+ *   isConnected,
+ *   localStream,
+ *   toggleAudio,
+ *   toggleVideo,
+ *   toggleScreenShare,
+ *   joinRoom
+ * } = useVideoCall();
+ * 
+ * await connect();
+ * await joinRoom('room-id');
+ * ```
+ */
 export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
   const videoServiceRef = useRef<VideoService | null>(null);
   const peersRef = useRef<Map<string, Peer.Instance>>(new Map());
@@ -231,6 +308,10 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
     updatePeers();
   }, [localStream, localScreenStream]);
 
+  /**
+   * Obtiene el stream local de cámara y micrófono
+   * @returns {Promise<MediaStream | null>} Stream de medios o null si hay error
+   */
   const getLocalStream = useCallback(async (): Promise<MediaStream | null> => {
     try {
       const currentStream = useVideoStore.getState().localStream;
@@ -261,6 +342,13 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
     }
   }, [setLocalStream, setError]);
 
+  /**
+   * Agrega tracks de un stream a una conexión peer
+   * Reemplaza tracks existentes si es necesario
+   * @param {Peer.Instance} peer - Instancia de simple-peer
+   * @param {MediaStream} stream - Stream de medios con los tracks a agregar
+   * @returns {Promise<void>}
+   */
   const addTracksToPeer = async (peer: Peer.Instance, stream: MediaStream): Promise<void> => {
     const pc = (peer as Peer.Instance & { _pc?: RTCPeerConnection })._pc;
     if (!pc) {
@@ -311,6 +399,15 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
     await Promise.all(trackPromises);
   };
 
+  /**
+   * Configura los handlers de tracks para una conexión peer
+   * Detecta y procesa tracks de cámara y pantalla compartida
+   * @param {RTCPeerConnection} pc - Conexión peer de WebRTC
+   * @param {string} targetUserId - ID del usuario remoto
+   * @param {(userId: string, stream: MediaStream) => void} addRemoteStream - Función para agregar stream de cámara
+   * @param {(userId: string, stream: MediaStream) => void} addRemoteScreenStream - Función para agregar stream de pantalla
+   * @param {(participants: VideoParticipant[]) => void} setParticipants - Función para actualizar participantes
+   */
   const setupTrackHandlers = (
     pc: RTCPeerConnection,
     targetUserId: string,
@@ -1131,6 +1228,10 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
     [setAudioEnabled, getLocalStream]
   );
 
+  /**
+   * Activa o desactiva el video de cámara (no afecta la pantalla compartida)
+   * @param {boolean} enabled - Si habilitar o deshabilitar el video
+   */
   const toggleVideo = useCallback(
     async (enabled: boolean) => {
       const storeState = useVideoStore.getState();

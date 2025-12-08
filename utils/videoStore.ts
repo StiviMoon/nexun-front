@@ -1,11 +1,22 @@
 import { create } from "zustand";
 import { VideoRoom, VideoParticipant } from "@/utils/services/videoService";
 
+/**
+ * Representa un error relacionado con video
+ * @interface VideoError
+ */
 export interface VideoError {
+  /** Mensaje de error */
   message: string;
+  /** Código de error opcional */
   code?: string;
 }
 
+/**
+ * Estado del store de video usando Zustand
+ * Maneja la conexión, streams locales/remotos, y controles de medios
+ * @interface VideoStoreState
+ */
 interface VideoStoreState {
   // Connection state
   isConnected: boolean;
@@ -78,6 +89,16 @@ const initialState: Omit<
   remoteScreenStreams: new Map(),
 };
 
+/**
+ * Store de Zustand para gestionar el estado de las videollamadas
+ * 
+ * @example
+ * ```ts
+ * const { localStream, isVideoEnabled, toggleVideo } = useVideoStore();
+ * ```
+ * 
+ * @returns {VideoStoreState} Estado y acciones del store de video
+ */
 export const useVideoStore = create<VideoStoreState>((set) => ({
   ...initialState,
   setConnected: (value) =>

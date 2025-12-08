@@ -3,17 +3,41 @@
 import { useRouter } from 'next/navigation';
 import { Mic, MicOff, Video, VideoOff, PhoneOff, Monitor, MonitorOff } from 'lucide-react';
 
+/**
+ * Props del componente ControlBar
+ * @interface ControlBarProps
+ */
 interface ControlBarProps {
+  /** Estado del micrófono (silenciado/activo) */
   isMuted: boolean;
+  /** Estado de la cámara (desactivada/activa) */
   isCameraOff: boolean;
+  /** Estado de pantalla compartida (activa/inactiva) */
   isScreenSharing: boolean;
+  /** Callback para alternar micrófono */
   onToggleMute: () => void;
+  /** Callback para alternar cámara */
   onToggleCamera: () => void;
+  /** Callback para alternar pantalla compartida */
   onToggleScreenShare: () => void;
+  /** Callback para abandonar la reunión */
   onLeave: () => void;
+  /** ID de la sala (opcional) */
   roomId?: string;
 }
 
+/**
+ * Barra de controles para videollamadas
+ * 
+ * Proporciona botones para:
+ * - Activar/desactivar micrófono
+ * - Activar/desactivar cámara
+ * - Iniciar/detener pantalla compartida
+ * - Abandonar la reunión
+ * 
+ * @param {ControlBarProps} props - Props del componente
+ * @returns {JSX.Element} Barra de controles
+ */
 export function ControlBar({
   isMuted,
   isCameraOff,

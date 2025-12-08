@@ -5,13 +5,33 @@ import Image from 'next/image';
 import { User, MicOff, VideoOff, Mic, Video, Monitor } from 'lucide-react';
 import { Participant } from '@/types/meetingRoom';
 
+/**
+ * Props del componente ParticipantVideo
+ * @interface ParticipantVideoProps
+ */
 interface ParticipantVideoProps {
+  /** Datos del participante */
   participant: Participant;
+  /** Si es el video principal (más grande) */
   isMain?: boolean;
+  /** Si mostrar animación de onda de audio */
   showWaveform?: boolean;
+  /** Ref del elemento de video (para video local) */
   videoRef?: RefObject<HTMLVideoElement | null>;
 }
 
+/**
+ * Componente que renderiza el video de un participante
+ * 
+ * Maneja la visualización de:
+ * - Stream de cámara (principal o overlay si hay pantalla)
+ * - Stream de pantalla compartida (principal cuando está activo)
+ * - Avatar cuando la cámara está desactivada
+ * - Indicadores de estado (micrófono, cámara, pantalla)
+ * 
+ * @param {ParticipantVideoProps} props - Props del componente
+ * @returns {JSX.Element} Componente de video del participante
+ */
 export function ParticipantVideo({
   participant,
   isMain = false,
@@ -57,12 +77,10 @@ export function ParticipantVideo({
     const trackListeners: Array<() => void> = [];
     videoTracks.forEach(track => {
       const handleEnabledChange = () => {
-        console.log(`📹 Track ${track.id} enabled cambió a: ${track.enabled} para ${participant.name}`);
         updateTrackState();
       };
       
       const handleStateChange = () => {
-        console.log(`📹 Track ${track.id} readyState cambió a: ${track.readyState} para ${participant.name}`);
         updateTrackState();
       };
 

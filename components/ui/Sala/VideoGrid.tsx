@@ -4,12 +4,30 @@ import { RefObject } from 'react';
 import { Participant } from '@/types/meetingRoom';
 import { ParticipantVideo } from './ParticipantVideo';
 
+/**
+ * Props del componente VideoGrid
+ * @interface VideoGridProps
+ */
 interface VideoGridProps {
+  /** Lista de participantes en la reunión */
   participants: Participant[];
+  /** ID del participante que está hablando actualmente */
   activeSpeakerId?: string | null;
+  /** Ref del elemento de video local */
   localVideoRef?: RefObject<HTMLVideoElement | null>;
 }
 
+/**
+ * Componente que organiza y muestra los videos de los participantes
+ * 
+ * Muestra:
+ * - Video principal del participante activo o local
+ * - Grid de thumbnails para los demás participantes
+ * - Mensaje cuando solo hay un participante
+ * 
+ * @param {VideoGridProps} props - Props del componente
+ * @returns {JSX.Element} Grid de videos de participantes
+ */
 export function VideoGrid({ participants, activeSpeakerId, localVideoRef }: VideoGridProps) {
   // Si no hay participantes, mostrar mensaje de espera
   if (participants.length === 0) {
