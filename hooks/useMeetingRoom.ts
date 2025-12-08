@@ -6,17 +6,44 @@ import { ChatMessage } from '@/types/chat';
 import { useVideoCall } from '@/app/hooks/useVideoCall';
 import { useAuthWithQuery } from '@/hooks/useAuthWithQuery';
 
+/**
+ * Props para el hook useMeetingRoom
+ * @interface UseMeetingRoomProps
+ */
 interface UseMeetingRoomProps {
+  /** ID de la sala de reunión */
   roomId: string;
 }
 
+/**
+ * Hook para gestionar una sala de reunión de video
+ * 
+ * Integra useVideoCall con la UI, mapeando participantes y gestionando
+ * el estado de la sala de reunión
+ * 
+ * @param {UseMeetingRoomProps} props - Props del hook
+ * @param {string} props.roomId - ID de la sala de reunión
+ * @returns {Object} Estado y funciones de la sala de reunión
+ * 
+ * @example
+ * ```ts
+ * const {
+ *   participants,
+ *   isMuted,
+ *   isCameraOff,
+ *   toggleMute,
+ *   toggleCamera,
+ *   toggleScreenShare
+ * } = useMeetingRoom({ roomId: 'room-123' });
+ * ```
+ */
 export function useMeetingRoom({ roomId }: UseMeetingRoomProps) {
   const { currentUser } = useAuthWithQuery();
   const localVideoRef = useRef<HTMLVideoElement>(null);
   
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [activeTab, setActiveTab] = useState<SidebarTab>('participants');
-  const [activeSpeakerId, setActiveSpeakerId] = useState<string | null>(null);
+  const [activeSpeakerId] = useState<string | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
 
   // Usar el hook de video call que maneja WebRTC
@@ -31,8 +58,10 @@ export function useMeetingRoom({ roomId }: UseMeetingRoomProps) {
     participants: videoParticipants,
     isAudioEnabled,
     isVideoEnabled,
+    isScreenSharing,
     toggleAudio,
     toggleVideo,
+    toggleScreenShare,
     getLocalStream,
   } = useVideoCall(true); // useGateway = true
 
@@ -118,6 +147,10 @@ export function useMeetingRoom({ roomId }: UseMeetingRoomProps) {
     toggleVideo(!isVideoEnabled);
   }, [toggleVideo, isVideoEnabled]);
 
+  const handleToggleScreenShare = useCallback(async () => {
+    await toggleScreenShare(!isScreenSharing);
+  }, [toggleScreenShare, isScreenSharing]);
+
   const leaveRoom = useCallback(() => {
     leaveVideoRoom();
   }, [leaveVideoRoom]);
@@ -142,9 +175,11 @@ export function useMeetingRoom({ roomId }: UseMeetingRoomProps) {
     setActiveTab,
     isMuted: !isAudioEnabled,
     isCameraOff: !isVideoEnabled,
+    isScreenSharing: isScreenSharing || false,
     activeSpeakerId,
     toggleMute,
     toggleCamera,
+    toggleScreenShare: handleToggleScreenShare,
     leaveRoom,
     sendMessage,
     localVideoRef,

@@ -21,9 +21,11 @@ export default function SalaPage({ params }: PageProps) {
     setActiveTab,
     isMuted,
     isCameraOff,
+    isScreenSharing,
     activeSpeakerId,
     toggleMute,
     toggleCamera,
+    toggleScreenShare,
     leaveRoom,
     messages,
     sendMessage,
@@ -54,7 +56,7 @@ export default function SalaPage({ params }: PageProps) {
         const payload = JSON.parse(raw);
         if (payload.title) setMeetingName(payload.title);
       }
-    } catch (e) {
+    } catch {
       // sessionStorage no disponible o JSON inválido
     }
   }, [params.id]);
@@ -95,8 +97,10 @@ export default function SalaPage({ params }: PageProps) {
             <ControlBar
               isMuted={isMuted}
               isCameraOff={isCameraOff}
+              isScreenSharing={isScreenSharing}
               onToggleMute={toggleMute}
               onToggleCamera={toggleCamera}
+              onToggleScreenShare={toggleScreenShare}
               onLeave={leaveRoom}
             />
           </div>
@@ -108,8 +112,10 @@ export default function SalaPage({ params }: PageProps) {
         <ControlBar
           isMuted={isMuted}
           isCameraOff={isCameraOff}
+          isScreenSharing={isScreenSharing}
           onToggleMute={toggleMute}
           onToggleCamera={toggleCamera}
+          onToggleScreenShare={toggleScreenShare}
           onLeave={leaveRoom}
         />
       </div>

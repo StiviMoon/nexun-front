@@ -67,56 +67,28 @@ export class ChatService {
   }
 
   private registerAllListeners(): void {
-    if (!this.socket) {
-      console.warn("⚠️ [ChatService] No socket disponible para registrar listeners");
-      return;
-    }
+    if (!this.socket) return;
 
-    console.log(`🔄 [ChatService] Re-registrando todos los listeners en socket ${this.socket.id}`);
+    const eventMap: Array<[keyof typeof this.callbacks, string]> = [
+      ['onMessage', 'message:new'],
+      ['onRoomsList', 'rooms:list'],
+      ['onRoomJoined', 'room:joined'],
+      ['onRoomLeft', 'room:left'],
+      ['onRoomCreated', 'room:created'],
+      ['onRoomDetails', 'room:details'],
+      ['onMessagesList', 'messages:list'],
+      ['onUserOnline', 'user:online'],
+      ['onUserOffline', 'user:offline'],
+      ['onError', 'error'],
+    ];
 
-    if (this.callbacks.onMessage) {
-      this.socket.off("message:new");
-      this.socket.on("message:new", this.callbacks.onMessage);
-      console.log(`✅ [ChatService] Listener message:new registrado`);
-    }
-    if (this.callbacks.onRoomsList) {
-      this.socket.off("rooms:list");
-      this.socket.on("rooms:list", this.callbacks.onRoomsList);
-    }
-    if (this.callbacks.onRoomJoined) {
-      this.socket.off("room:joined");
-      this.socket.on("room:joined", this.callbacks.onRoomJoined);
-    }
-    if (this.callbacks.onRoomLeft) {
-      this.socket.off("room:left");
-      this.socket.on("room:left", this.callbacks.onRoomLeft);
-    }
-    if (this.callbacks.onRoomCreated) {
-      this.socket.off("room:created");
-      this.socket.on("room:created", this.callbacks.onRoomCreated);
-    }
-    if (this.callbacks.onRoomDetails) {
-      this.socket.off("room:details");
-      this.socket.on("room:details", this.callbacks.onRoomDetails);
-    }
-    if (this.callbacks.onMessagesList) {
-      this.socket.off("messages:list");
-      this.socket.on("messages:list", this.callbacks.onMessagesList);
-    }
-    if (this.callbacks.onUserOnline) {
-      this.socket.off("user:online");
-      this.socket.on("user:online", this.callbacks.onUserOnline);
-    }
-    if (this.callbacks.onUserOffline) {
-      this.socket.off("user:offline");
-      this.socket.on("user:offline", this.callbacks.onUserOffline);
-    }
-    if (this.callbacks.onError) {
-      this.socket.off("error");
-      this.socket.on("error", this.callbacks.onError);
-    }
-
-    console.log(`✅ [ChatService] Todos los listeners registrados en socket ${this.socket.id}`);
+    eventMap.forEach(([callbackKey, eventName]) => {
+      const callback = this.callbacks[callbackKey];
+      if (callback) {
+        this.socket!.off(eventName);
+        this.socket!.on(eventName, callback as (...args: unknown[]) => void);
+      }
+    });
   }
 
   async connect(): Promise<Socket> {
@@ -150,43 +122,51 @@ export class ChatService {
     });
 
     this.socket.on("connect", () => {
-      console.log("✅ Connected to chat service");
       setTimeout(() => {
         this.registerAllListeners();
       }, 100);
     });
 
-    this.socket.on("disconnect", (reason) => {
-      console.log("❌ Disconnected from chat service:", reason);
+    this.socket.on("disconnect", () => {
+      // Handle disconnect if needed
     });
 
-    // Only log socket errors if they have meaningful information
     this.socket.on("error", (error: unknown) => {
-      // Only log if error has meaningful information
-      if (error && typeof error === "object") {
+      if (!error) return;
+      
+      if (typeof error === "string" && error.trim().length > 0) {
+        console.error("Socket error:", error);
+        return;
+      }
+      
+      if (typeof error === "object" && error !== null) {
         const errorObj = error as Record<string, unknown>;
-        if (Object.keys(errorObj).length > 0) {
+        const keys = Object.keys(errorObj);
+        
+        if (keys.length === 0) return;
+        
+        const hasMeaningfulData = keys.some(key => {
+          const value = errorObj[key];
+          if (value === null || value === undefined || value === "") return false;
+          if (typeof value === "object" && Object.keys(value as Record<string, unknown>).length === 0) return false;
+          return true;
+        });
+        
+        if (hasMeaningfulData) {
           console.error("Socket error:", error);
         }
-        // Silently ignore empty errors
-      } else if (error && typeof error === "string" && error.length > 0) {
-        console.error("Socket error:", error);
       }
-      // Silently ignore empty errors (no log)
     });
 
-    // Listen for connection errors (more reliable than "error" event)
     this.socket.on("connect_error", (err) => {
-      // This is handled by useChat hook, just log here
       if (err.message?.includes("auth") || err.message?.includes("unauthorized")) {
         console.error("Authentication error:", err.message);
-      } else {
-        console.error("Connection error:", err.message || err);
+      } else if (err.message) {
+        console.error("Connection error:", err.message);
       }
     });
 
     this.socket.on("auth:error", async () => {
-      console.log("🔄 Token expired, refreshing...");
       const newToken = await getIdToken(true);
       if (newToken && this.socket) {
         (this.socket.auth as { token: string }).token = newToken;
@@ -293,101 +273,70 @@ export class ChatService {
 
   onMessage(callback: (message: ChatMessage) => void): void {
     this.callbacks.onMessage = callback;
-    if (!this.socket) {
-      console.warn("⚠️ [ChatService] Socket no inicializado, callback guardado para registro posterior");
-      return;
-    }
+    if (!this.socket) return;
     this.socket.off("message:new");
     this.socket.on("message:new", callback);
-    console.log("✅ [ChatService] Listener message:new registrado");
   }
 
   onRoomsList(callback: (rooms: ChatRoom[]) => void): void {
     this.callbacks.onRoomsList = callback;
-    if (!this.socket) {
-      console.warn("⚠️ [ChatService] Socket no inicializado, callback guardado");
-      return;
-    }
+    if (!this.socket) return;
     this.socket.off("rooms:list");
     this.socket.on("rooms:list", callback);
   }
 
   onRoomLeft(callback: (data: { roomId: string }) => void): void {
     this.callbacks.onRoomLeft = callback;
-    if (!this.socket) {
-      console.warn("⚠️ [ChatService] Socket no inicializado, callback guardado");
-      return;
-    }
+    if (!this.socket) return;
     this.socket.off("room:left");
     this.socket.on("room:left", callback);
   }
 
   onRoomJoined(callback: (data: { roomId: string; room: ChatRoom }) => void): void {
     this.callbacks.onRoomJoined = callback;
-    if (!this.socket) {
-      console.warn("⚠️ [ChatService] Socket no inicializado, callback guardado");
-      return;
-    }
+    if (!this.socket) return;
     this.socket.off("room:joined");
     this.socket.on("room:joined", callback);
   }
 
   onUserOnline(callback: (data: { userId: string }) => void): void {
     this.callbacks.onUserOnline = callback;
-    if (!this.socket) {
-      console.warn("⚠️ [ChatService] Socket no inicializado, callback guardado");
-      return;
-    }
+    if (!this.socket) return;
     this.socket.off("user:online");
     this.socket.on("user:online", callback);
   }
 
   onUserOffline(callback: (data: { userId: string }) => void): void {
     this.callbacks.onUserOffline = callback;
-    if (!this.socket) {
-      console.warn("⚠️ [ChatService] Socket no inicializado, callback guardado");
-      return;
-    }
+    if (!this.socket) return;
     this.socket.off("user:offline");
     this.socket.on("user:offline", callback);
   }
 
   onRoomCreated(callback: (room: ChatRoom) => void): void {
     this.callbacks.onRoomCreated = callback;
-    if (!this.socket) {
-      console.warn("⚠️ [ChatService] Socket no inicializado, callback guardado");
-      return;
-    }
+    if (!this.socket) return;
     this.socket.off("room:created");
     this.socket.on("room:created", callback);
   }
 
   onRoomDetails(callback: (room: ChatRoom) => void): void {
     this.callbacks.onRoomDetails = callback;
-    if (!this.socket) {
-      console.warn("⚠️ [ChatService] Socket no inicializado, callback guardado");
-      return;
-    }
+    if (!this.socket) return;
     this.socket.off("room:details");
     this.socket.on("room:details", callback);
   }
 
   onMessagesList(callback: (data: { roomId: string; messages: ChatMessage[] }) => void): void {
     this.callbacks.onMessagesList = callback;
-    if (!this.socket) {
-      console.warn("⚠️ [ChatService] Socket no inicializado, callback guardado");
-      return;
-    }
+    if (!this.socket) return;
     this.socket.off("messages:list");
     this.socket.on("messages:list", callback);
   }
 
   onError(callback: (error: { message: string; code?: string }) => void): void {
     this.callbacks.onError = callback;
-    if (!this.socket) {
-      console.warn("⚠️ [ChatService] Socket no inicializado, callback guardado");
-      return;
-    }
+    if (!this.socket) return;
     this.socket.off("error");
     this.socket.on("error", callback);
   }

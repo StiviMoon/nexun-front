@@ -1,11 +1,22 @@
 import { create } from "zustand";
 import { VideoRoom, VideoParticipant } from "@/utils/services/videoService";
 
+/**
+ * Representa un error relacionado con video
+ * @interface VideoError
+ */
 export interface VideoError {
+  /** Mensaje de error */
   message: string;
+  /** Código de error opcional */
   code?: string;
 }
 
+/**
+ * Estado del store de video usando Zustand
+ * Maneja la conexión, streams locales/remotos, y controles de medios
+ * @interface VideoStoreState
+ */
 interface VideoStoreState {
   // Connection state
   isConnected: boolean;
@@ -15,15 +26,18 @@ interface VideoStoreState {
   // Room state
   currentRoom: VideoRoom | null;
   participants: VideoParticipant[];
-  localStream: MediaStream | null;
+  localStream: MediaStream | null; // Stream de cámara local
+  localScreenStream: MediaStream | null; // Stream de pantalla local
 
   // Media controls
   isAudioEnabled: boolean;
   isVideoEnabled: boolean;
   isScreenSharing: boolean;
 
-  // Remote streams (userId -> MediaStream)
+  // Remote streams (userId -> MediaStream) - streams de cámara
   remoteStreams: Map<string, MediaStream>;
+  // Remote screen streams (userId -> MediaStream) - streams de pantalla compartida
+  remoteScreenStreams: Map<string, MediaStream>;
 
   // Actions
   setConnected: (value: boolean) => void;
@@ -32,11 +46,14 @@ interface VideoStoreState {
   setCurrentRoom: (room: VideoRoom | null) => void;
   setParticipants: (participants: VideoParticipant[]) => void;
   setLocalStream: (stream: MediaStream | null) => void;
+  setLocalScreenStream: (stream: MediaStream | null) => void;
   setAudioEnabled: (enabled: boolean) => void;
   setVideoEnabled: (enabled: boolean) => void;
   setScreenSharing: (enabled: boolean) => void;
   addRemoteStream: (userId: string, stream: MediaStream) => void;
   removeRemoteStream: (userId: string) => void;
+  addRemoteScreenStream: (userId: string, stream: MediaStream) => void;
+  removeRemoteScreenStream: (userId: string) => void;
   reset: () => void;
 }
 
@@ -48,11 +65,14 @@ const initialState: Omit<
   | "setCurrentRoom"
   | "setParticipants"
   | "setLocalStream"
+  | "setLocalScreenStream"
   | "setAudioEnabled"
   | "setVideoEnabled"
   | "setScreenSharing"
   | "addRemoteStream"
   | "removeRemoteStream"
+  | "addRemoteScreenStream"
+  | "removeRemoteScreenStream"
   | "reset"
 > = {
   isConnected: false,
@@ -61,12 +81,24 @@ const initialState: Omit<
   currentRoom: null,
   participants: [],
   localStream: null,
+  localScreenStream: null,
   isAudioEnabled: true,
   isVideoEnabled: true,
   isScreenSharing: false,
   remoteStreams: new Map(),
+  remoteScreenStreams: new Map(),
 };
 
+/**
+ * Store de Zustand para gestionar el estado de las videollamadas
+ * 
+ * @example
+ * ```ts
+ * const { localStream, isVideoEnabled, toggleVideo } = useVideoStore();
+ * ```
+ * 
+ * @returns {VideoStoreState} Estado y acciones del store de video
+ */
 export const useVideoStore = create<VideoStoreState>((set) => ({
   ...initialState,
   setConnected: (value) =>
@@ -92,6 +124,10 @@ export const useVideoStore = create<VideoStoreState>((set) => ({
   setLocalStream: (stream) =>
     set(() => ({
       localStream: stream,
+    })),
+  setLocalScreenStream: (stream) =>
+    set(() => ({
+      localScreenStream: stream,
     })),
   setAudioEnabled: (enabled) =>
     set(() => ({
@@ -121,6 +157,22 @@ export const useVideoStore = create<VideoStoreState>((set) => ({
         remoteStreams: newStreams,
       };
     }),
+  addRemoteScreenStream: (userId, stream) =>
+    set((state) => {
+      const newStreams = new Map(state.remoteScreenStreams);
+      newStreams.set(userId, stream);
+      return {
+        remoteScreenStreams: newStreams,
+      };
+    }),
+  removeRemoteScreenStream: (userId) =>
+    set((state) => {
+      const newStreams = new Map(state.remoteScreenStreams);
+      newStreams.delete(userId);
+      return {
+        remoteScreenStreams: newStreams,
+      };
+    }),
   reset: () =>
     set(() => {
       // Clean up streams
@@ -128,13 +180,20 @@ export const useVideoStore = create<VideoStoreState>((set) => ({
       if (state.localStream) {
         state.localStream.getTracks().forEach((track) => track.stop());
       }
+      if (state.localScreenStream) {
+        state.localScreenStream.getTracks().forEach((track) => track.stop());
+      }
       state.remoteStreams.forEach((stream) => {
+        stream.getTracks().forEach((track) => track.stop());
+      });
+      state.remoteScreenStreams.forEach((stream) => {
         stream.getTracks().forEach((track) => track.stop());
       });
 
       return {
         ...initialState,
         remoteStreams: new Map(),
+        remoteScreenStreams: new Map(),
       };
     }),
 }));

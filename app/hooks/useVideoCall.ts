@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useEffect } from "react";
 import Peer from "simple-peer";
 import { VideoService, VideoRoom, VideoParticipant } from "@/utils/services/videoService";
 import { useVideoStore } from "@/utils/videoStore";
@@ -37,132 +37,216 @@ const getCurrentUserId = (): string | null => {
 
 const DEBUG = process.env.NODE_ENV === 'development';
 
+/**
+ * Log de desarrollo (solo en modo desarrollo)
+ * @param {string} message - Mensaje a loguear
+ * @param {...unknown} args - Argumentos adicionales
+ */
 const log = (message: string, ...args: unknown[]) => {
   if (DEBUG) console.log(message, ...args);
 };
 
+/**
+ * Log de errores
+ * @param {string} message - Mensaje de error
+ * @param {...unknown} args - Argumentos adicionales
+ */
 const logError = (message: string, ...args: unknown[]) => {
   console.error(message, ...args);
 };
 
+/**
+ * Actualiza el estado de un participante específico
+ * @param {string} userId - ID del usuario a actualizar
+ * @param {Partial<VideoParticipant>} updates - Actualizaciones a aplicar
+ * @param {(participants: VideoParticipant[]) => void} setParticipants - Función para actualizar participantes
+ */
+const updateParticipantState = (
+  userId: string,
+  updates: Partial<VideoParticipant>,
+  setParticipants: (participants: VideoParticipant[]) => void
+) => {
+  const currentParticipants = useVideoStore.getState().participants;
+  const safeParticipants = Array.isArray(currentParticipants) ? currentParticipants : [];
+  const updatedParticipants = safeParticipants.map((p) =>
+    p.userId === userId ? { ...p, ...updates } : p
+  );
+  setParticipants(updatedParticipants);
+};
+
+/**
+ * Maneja un stream remoto recibido, detectando si es de cámara o pantalla compartida
+ * y almacenándolo en el store correspondiente
+ * @param {MediaStream} stream - Stream de medios recibido
+ * @param {string} userId - ID del usuario que envía el stream
+ * @param {(userId: string, stream: MediaStream) => void} addRemoteStream - Función para agregar stream de cámara
+ * @param {(userId: string, stream: MediaStream) => void} addRemoteScreenStream - Función para agregar stream de pantalla
+ * @param {(participants: VideoParticipant[]) => void} setParticipants - Función para actualizar participantes
+ */
 const handleRemoteStream = (
   stream: MediaStream,
   userId: string,
   addRemoteStream: (userId: string, stream: MediaStream) => void,
+  addRemoteScreenStream: (userId: string, stream: MediaStream) => void,
   setParticipants: (participants: VideoParticipant[]) => void
 ) => {
-  log(`📹 [handleRemoteStream] Procesando stream remoto de ${userId}`, {
-    streamId: stream.id,
-    videoTracks: stream.getVideoTracks().length,
-    audioTracks: stream.getAudioTracks().length
+  const videoTracks = stream.getVideoTracks();
+  const isScreenStream = videoTracks.some(track => {
+    const settings = track.getSettings ? track.getSettings() : {};
+    return settings.displaySurface === 'monitor' || 
+           settings.displaySurface === 'window' ||
+           track.label?.toLowerCase().includes('screen') ||
+           track.label?.toLowerCase().includes('display');
   });
 
-  // Obtener stream existente o crear uno nuevo
-  const existingStream = useVideoStore.getState().remoteStreams.get(userId);
-  const streamToUse = existingStream || new MediaStream();
-  
-  // Agregar todos los tracks del nuevo stream al stream consolidado
-  stream.getVideoTracks().forEach(track => {
-    // Verificar si el track ya existe en el stream
-    const trackExists = streamToUse.getVideoTracks().some(t => t.id === track.id);
-    if (!trackExists) {
-      streamToUse.addTrack(track);
-      log(`📹 [handleRemoteStream] Video track ${track.id} agregado al stream de ${userId}`);
-    }
+  if (isScreenStream) {
+    // Es un stream de pantalla compartida
+    const existingScreenStream = useVideoStore.getState().remoteScreenStreams.get(userId);
+    const screenStreamToUse = existingScreenStream || new MediaStream();
     
-    // Asegurar que el track esté habilitado
-    if (track.readyState === 'live' && !track.enabled) {
-      log(`🔄 [handleRemoteStream] Habilitando video track ${track.id} de ${userId}`);
-      track.enabled = true;
-    }
-    
-    log(`📹 [handleRemoteStream] Video track ${track.id} estado:`, {
-      enabled: track.enabled,
-      readyState: track.readyState,
-      muted: track.muted,
-      kind: track.kind
-    });
-  });
-  
-  stream.getAudioTracks().forEach(track => {
-    const trackExists = streamToUse.getAudioTracks().some(t => t.id === track.id);
-    if (!trackExists) {
-      streamToUse.addTrack(track);
-      log(`🔊 [handleRemoteStream] Audio track ${track.id} agregado al stream de ${userId}`);
-    }
-    
-    if (track.readyState === 'live' && !track.enabled) {
-      log(`🔄 [handleRemoteStream] Habilitando audio track ${track.id} de ${userId}`);
-      track.enabled = true;
-    }
-  });
-
-  // Agregar el stream consolidado al store
-  addRemoteStream(userId, streamToUse);
-  log(`✅ [handleRemoteStream] Stream de ${userId} agregado al store`, {
-    totalVideoTracks: streamToUse.getVideoTracks().length,
-    totalAudioTracks: streamToUse.getAudioTracks().length
-  });
-
-  const currentParticipants = useVideoStore.getState().participants;
-  const safeParticipants = Array.isArray(currentParticipants) ? currentParticipants : [];
-  const exists = safeParticipants.some(p => p.userId === userId);
-
-  const hasVideo = streamToUse.getVideoTracks().length > 0 && 
-                   streamToUse.getVideoTracks().some(t => t.enabled && t.readyState === 'live');
-  const hasAudio = streamToUse.getAudioTracks().length > 0 && 
-                   streamToUse.getAudioTracks().some(t => t.enabled && t.readyState === 'live');
-
-  if (!exists) {
-    const newParticipant: VideoParticipant = {
-      userId,
-      socketId: '',
-      isAudioEnabled: hasAudio,
-      isVideoEnabled: hasVideo,
-      isScreenSharing: false,
-      joinedAt: new Date(),
+    const addTrackIfNotExists = (track: MediaStreamTrack) => {
+      const trackExists = screenStreamToUse.getTracks().some(t => t.id === track.id);
+      if (!trackExists) {
+        screenStreamToUse.addTrack(track);
+        if (track.readyState === 'live' && !track.enabled) {
+          track.enabled = true;
+        }
+      }
     };
-    setParticipants([...safeParticipants, newParticipant]);
-    log(`👤 [handleRemoteStream] Nuevo participante ${userId} agregado`);
+
+    stream.getVideoTracks().forEach(addTrackIfNotExists);
+    stream.getAudioTracks().forEach(addTrackIfNotExists);
+
+    addRemoteScreenStream(userId, screenStreamToUse);
+    updateParticipantState(userId, { isScreenSharing: true }, setParticipants);
   } else {
-    setParticipants(safeParticipants.map(p =>
-      p.userId === userId
-        ? { ...p, isAudioEnabled: hasAudio, isVideoEnabled: hasVideo }
-        : p
-    ));
-    log(`🔄 [handleRemoteStream] Participante ${userId} actualizado`);
+    // Es un stream de cámara
+    const existingStream = useVideoStore.getState().remoteStreams.get(userId);
+    const streamToUse = existingStream || new MediaStream();
+    
+    const addTrackIfNotExists = (track: MediaStreamTrack) => {
+      const trackExists = streamToUse.getTracks().some(t => t.id === track.id);
+      if (!trackExists) {
+        streamToUse.addTrack(track);
+        if (track.readyState === 'live' && !track.enabled) {
+          track.enabled = true;
+        }
+      }
+    };
+
+    stream.getVideoTracks().forEach(addTrackIfNotExists);
+    stream.getAudioTracks().forEach(addTrackIfNotExists);
+
+    addRemoteStream(userId, streamToUse);
+
+    const currentParticipants = useVideoStore.getState().participants;
+    const safeParticipants = Array.isArray(currentParticipants) ? currentParticipants : [];
+    const exists = safeParticipants.some(p => p.userId === userId);
+
+    const hasVideo = streamToUse.getVideoTracks().length > 0 && 
+                     streamToUse.getVideoTracks().some(t => t.enabled && t.readyState === 'live');
+    const hasAudio = streamToUse.getAudioTracks().length > 0 && 
+                     streamToUse.getAudioTracks().some(t => t.enabled && t.readyState === 'live');
+
+    if (!exists) {
+      const newParticipant: VideoParticipant = {
+        userId,
+        socketId: '',
+        isAudioEnabled: hasAudio,
+        isVideoEnabled: hasVideo,
+        isScreenSharing: false,
+        joinedAt: new Date(),
+      };
+      setParticipants([...safeParticipants, newParticipant]);
+    } else {
+      updateParticipantState(userId, { isAudioEnabled: hasAudio, isVideoEnabled: hasVideo }, setParticipants);
+    }
   }
 };
 
+/**
+ * Retorno del hook useVideoCall
+ * @interface UseVideoCallReturn
+ */
 interface UseVideoCallReturn {
+  /** Estado de conexión al servidor */
   isConnected: boolean;
+  /** Estado de conexión en progreso */
   isConnecting: boolean;
+  /** Error actual si existe */
   error: { message: string; code?: string } | null;
+  /** Sala de video actual */
   currentRoom: VideoRoom | null;
+  /** Lista de participantes en la sala */
   participants: VideoParticipant[];
+  /** Stream de cámara local */
   localStream: MediaStream | null;
+  /** Stream de pantalla compartida local */
+  localScreenStream: MediaStream | null;
+  /** Map de streams remotos de cámara (userId -> MediaStream) */
   remoteStreams: Map<string, MediaStream>;
+  /** Map de streams remotos de pantalla (userId -> MediaStream) */
+  remoteScreenStreams: Map<string, MediaStream>;
+  /** Estado del audio (habilitado/deshabilitado) */
   isAudioEnabled: boolean;
+  /** Estado del video (habilitado/deshabilitado) */
   isVideoEnabled: boolean;
+  /** Estado de pantalla compartida (activa/inactiva) */
   isScreenSharing: boolean;
+  /** Conecta al servidor de video */
   connect: () => Promise<void>;
+  /** Desconecta del servidor de video */
   disconnect: () => void;
+  /** Crea una nueva sala de video */
   createRoom: (name: string, description?: string, maxParticipants?: number, visibility?: "public" | "private", createChat?: boolean) => Promise<string | null>;
+  /** Se une a una sala de video existente */
   joinRoom: (roomId: string) => Promise<void>;
+  /** Abandona la sala actual */
   leaveRoom: () => void;
+  /** Activa/desactiva el audio */
   toggleAudio: (enabled: boolean) => void;
+  /** Activa/desactiva el video (solo cámara, no pantalla) */
   toggleVideo: (enabled: boolean) => void;
+  /** Activa/desactiva la pantalla compartida */
   toggleScreenShare: (enabled: boolean) => Promise<void>;
+  /** Obtiene el stream local de cámara y micrófono */
   getLocalStream: () => Promise<MediaStream | null>;
 }
 
+/**
+ * Hook principal para gestionar videollamadas usando WebRTC y Socket.IO
+ * 
+ * Maneja:
+ * - Conexión al servidor de video
+ * - Creación y unión a salas
+ * - Gestión de streams locales y remotos (cámara y pantalla separados)
+ * - Controles de audio, video y pantalla compartida
+ * - Conexiones peer-to-peer usando simple-peer
+ * 
+ * @param {boolean} [useGateway=false] - Si usar gateway para la conexión
+ * @returns {UseVideoCallReturn} Objeto con estado y funciones de control
+ * 
+ * @example
+ * ```ts
+ * const {
+ *   isConnected,
+ *   localStream,
+ *   toggleAudio,
+ *   toggleVideo,
+ *   toggleScreenShare,
+ *   joinRoom
+ * } = useVideoCall();
+ * 
+ * await connect();
+ * await joinRoom('room-id');
+ * ```
+ */
 export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
   const videoServiceRef = useRef<VideoService | null>(null);
   const peersRef = useRef<Map<string, Peer.Instance>>(new Map());
   const listenersRegisteredRef = useRef(false);
   const connectingRef = useRef(false);
   const joiningRoomRef = useRef<string | null>(null);
-  const processedRoomsRef = useRef<Set<string>>(new Set());
 
   const isConnected = useVideoStore((state) => state.isConnected);
   const isConnecting = useVideoStore((state) => state.isConnecting);
@@ -170,7 +254,9 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
   const currentRoom = useVideoStore((state) => state.currentRoom);
   const participants = useVideoStore((state) => state.participants);
   const localStream = useVideoStore((state) => state.localStream);
+  const localScreenStream = useVideoStore((state) => state.localScreenStream);
   const remoteStreams = useVideoStore((state) => state.remoteStreams);
+  const remoteScreenStreams = useVideoStore((state) => state.remoteScreenStreams);
   const isAudioEnabled = useVideoStore((state) => state.isAudioEnabled);
   const isVideoEnabled = useVideoStore((state) => state.isVideoEnabled);
   const isScreenSharing = useVideoStore((state) => state.isScreenSharing);
@@ -181,13 +267,51 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
   const setCurrentRoom = useVideoStore((state) => state.setCurrentRoom);
   const setParticipants = useVideoStore((state) => state.setParticipants);
   const setLocalStream = useVideoStore((state) => state.setLocalStream);
+  const setLocalScreenStream = useVideoStore((state) => state.setLocalScreenStream);
   const setAudioEnabled = useVideoStore((state) => state.setAudioEnabled);
   const setVideoEnabled = useVideoStore((state) => state.setVideoEnabled);
   const setScreenSharing = useVideoStore((state) => state.setScreenSharing);
   const addRemoteStream = useVideoStore((state) => state.addRemoteStream);
   const removeRemoteStream = useVideoStore((state) => state.removeRemoteStream);
+  const addRemoteScreenStream = useVideoStore((state) => state.addRemoteScreenStream);
+  const removeRemoteScreenStream = useVideoStore((state) => state.removeRemoteScreenStream);
   const reset = useVideoStore((state) => state.reset);
 
+  // Actualizar tracks en todos los peers cuando cambia el localStream o localScreenStream
+  useEffect(() => {
+    if (peersRef.current.size === 0) return;
+
+    const updatePeers = async () => {
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      const updatePromises: Promise<void>[] = [];
+      peersRef.current.forEach((peer, userId) => {
+        if (peer && !peer.destroyed) {
+          const updatePromise = (async () => {
+            if (localStream) {
+              await addTracksToPeer(peer, localStream);
+            }
+            if (localScreenStream) {
+              await addTracksToPeer(peer, localScreenStream);
+            }
+          })().catch(err => {
+            logError(`Error actualizando tracks en peer ${userId}:`, err);
+          });
+          updatePromises.push(updatePromise);
+        }
+      });
+
+      await Promise.all(updatePromises);
+      log(`✅ Tracks actualizados en ${updatePromises.length} peers`);
+    };
+
+    updatePeers();
+  }, [localStream, localScreenStream]);
+
+  /**
+   * Obtiene el stream local de cámara y micrófono
+   * @returns {Promise<MediaStream | null>} Stream de medios o null si hay error
+   */
   const getLocalStream = useCallback(async (): Promise<MediaStream | null> => {
     try {
       const currentStream = useVideoStore.getState().localStream;
@@ -218,29 +342,127 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
     }
   }, [setLocalStream, setError]);
 
-  const addTracksToPeer = (peer: Peer.Instance, stream: MediaStream) => {
+  /**
+   * Agrega tracks de un stream a una conexión peer
+   * Reemplaza tracks existentes si es necesario
+   * @param {Peer.Instance} peer - Instancia de simple-peer
+   * @param {MediaStream} stream - Stream de medios con los tracks a agregar
+   * @returns {Promise<void>}
+   */
+  const addTracksToPeer = async (peer: Peer.Instance, stream: MediaStream): Promise<void> => {
     const pc = (peer as Peer.Instance & { _pc?: RTCPeerConnection })._pc;
-    if (!pc) return;
+    if (!pc) {
+      log(`⚠️ No hay RTCPeerConnection disponible para agregar tracks`);
+      return;
+    }
+
+    if (pc.signalingState === 'closed') {
+      log(`⚠️ Peer connection está cerrada, no se pueden agregar tracks`);
+      return;
+    }
 
     const existingSenders = pc.getSenders();
     const existingTrackIds = new Set(existingSenders.map(s => s.track?.id).filter(Boolean));
+
+    const trackPromises: Promise<void>[] = [];
 
     stream.getTracks().forEach(track => {
       if (!existingTrackIds.has(track.id)) {
         try {
           pc.addTrack(track, stream);
-          log(`Track ${track.kind} agregado al peer`);
+          log(`✅ Track ${track.kind} (${track.id}) agregado al peer`);
         } catch (err) {
           logError(`Error agregando track ${track.kind}:`, err);
         }
+      } else {
+        const sender = existingSenders.find(s => s.track?.id === track.id);
+        if (sender) {
+          if (sender.track !== track) {
+            const replacePromise = sender.replaceTrack(track).then(() => {
+              log(`✅ Track ${track.kind} (${track.id}) reemplazado en peer`);
+            }).catch(err => {
+              logError(`Error reemplazando track ${track.kind}:`, err);
+            });
+            trackPromises.push(replacePromise);
+          }
+        } else {
+          try {
+            pc.addTrack(track, stream);
+            log(`✅ Track ${track.kind} (${track.id}) agregado al peer (sender no encontrado)`);
+          } catch (err) {
+            logError(`Error agregando track ${track.kind} (fallback):`, err);
+          }
+        }
       }
     });
+
+    await Promise.all(trackPromises);
+  };
+
+  /**
+   * Configura los handlers de tracks para una conexión peer
+   * Detecta y procesa tracks de cámara y pantalla compartida
+   * @param {RTCPeerConnection} pc - Conexión peer de WebRTC
+   * @param {string} targetUserId - ID del usuario remoto
+   * @param {(userId: string, stream: MediaStream) => void} addRemoteStream - Función para agregar stream de cámara
+   * @param {(userId: string, stream: MediaStream) => void} addRemoteScreenStream - Función para agregar stream de pantalla
+   * @param {(participants: VideoParticipant[]) => void} setParticipants - Función para actualizar participantes
+   */
+  const setupTrackHandlers = (
+    pc: RTCPeerConnection,
+    targetUserId: string,
+    addRemoteStream: (userId: string, stream: MediaStream) => void,
+    addRemoteScreenStream: (userId: string, stream: MediaStream) => void,
+    setParticipants: (participants: VideoParticipant[]) => void
+  ) => {
+    const trackHandler = (event: RTCTrackEvent) => {
+      log(`📹 Nuevo track recibido de ${targetUserId} (trackHandler):`, {
+        trackId: event.track.id,
+        kind: event.track.kind,
+        enabled: event.track.enabled,
+        readyState: event.track.readyState,
+        streamsCount: event.streams.length,
+        label: event.track.label
+      });
+
+      if (event.track.readyState === 'live' && !event.track.enabled) {
+        event.track.enabled = true;
+        log(`🔄 Track ${event.track.id} habilitado automáticamente`);
+      }
+
+      const trackSettings = event.track.getSettings ? event.track.getSettings() : {};
+      const isScreenTrack = trackSettings.displaySurface === 'monitor' || 
+                           trackSettings.displaySurface === 'window' ||
+                           event.track.label?.toLowerCase().includes('screen') ||
+                           event.track.label?.toLowerCase().includes('display');
+      
+      if (isScreenTrack) {
+        log(`📺 Detectado track de pantalla compartida de ${targetUserId}`);
+        updateParticipantState(targetUserId, { isScreenSharing: true }, setParticipants);
+      }
+      
+      if (event.streams && event.streams.length > 0) {
+        event.streams.forEach(stream => {
+          log(`📹 Procesando stream ${stream.id} de ${targetUserId} (${stream.getTracks().length} tracks)`);
+          handleRemoteStream(stream, targetUserId, addRemoteStream, addRemoteScreenStream, setParticipants);
+        });
+      } else {
+        // Si no hay stream asociado, crear uno temporal para procesar el track
+        const tempStream = new MediaStream([event.track]);
+        handleRemoteStream(tempStream, targetUserId, addRemoteStream, addRemoteScreenStream, setParticipants);
+      }
+    };
+
+    pc.removeEventListener('track', trackHandler);
+    pc.addEventListener('track', trackHandler);
+    log(`✅ Track handler configurado para ${targetUserId}`);
   };
 
   const createPeerConnection = useCallback(
     async (targetUserId: string, initiator: boolean): Promise<Peer.Instance> => {
       const storeState = useVideoStore.getState();
       const currentStream = storeState.localStream;
+      const currentScreenStream = storeState.localScreenStream;
       const room = storeState.currentRoom;
 
       if (!currentStream) throw new Error("No stream available");
@@ -249,130 +471,167 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
       const existingPeer = peersRef.current.get(targetUserId);
       if (existingPeer) return existingPeer;
 
-      log(`Creando peer con ${targetUserId} (initiator: ${initiator})`);
+      // Combinar streams de cámara y pantalla si ambos están disponibles
+      const combinedStream = new MediaStream();
+      currentStream.getTracks().forEach(track => combinedStream.addTrack(track));
+      if (currentScreenStream) {
+        currentScreenStream.getTracks().forEach(track => combinedStream.addTrack(track));
+      }
 
       const peer = new Peer({
         initiator,
         trickle: false,
         config: ICE_SERVERS,
+        stream: combinedStream,
         offerOptions: { offerToReceiveAudio: true, offerToReceiveVideo: true },
         answerOptions: { offerToReceiveAudio: true, offerToReceiveVideo: true },
       });
 
-      addTracksToPeer(peer, currentStream);
-      setTimeout(() => addTracksToPeer(peer, currentStream), 50);
-
       peersRef.current.set(targetUserId, peer);
 
-      peer.on("connect", () => {
-        log(`✅ Conexión WebRTC establecida con ${targetUserId}`);
-        const pc = (peer as Peer.Instance & { _pc?: RTCPeerConnection })._pc;
-        if (!pc) {
-          logError(`❌ No hay RTCPeerConnection disponible para ${targetUserId}`);
-          return;
-        }
-
-        log(`📡 [Peer Connect] Revisando receivers para ${targetUserId}`);
-        const receivers = pc.getReceivers();
-        log(`📡 [Peer Connect] Total receivers: ${receivers.length}`);
-        
-        // Verificar estado de la conexión
-        log(`📡 [Peer Connect] Estado de conexión:`, {
-          connectionState: pc.connectionState,
-          iceConnectionState: pc.iceConnectionState,
-          signalingState: pc.signalingState
+      const peerPc = (peer as Peer.Instance & { _pc?: RTCPeerConnection })._pc;
+      if (peerPc) {
+        peerPc.addEventListener('negotiationneeded', () => {
+          log(`🔄 Negotiation needed para peer ${targetUserId}`);
         });
-        
-        receivers.forEach((receiver, idx) => {
-          if (receiver.track) {
-            log(`📡 [Peer Connect] Receiver ${idx} track:`, {
-              id: receiver.track.id,
-              kind: receiver.track.kind,
-              enabled: receiver.track.enabled,
-              readyState: receiver.track.readyState,
-              muted: receiver.track.muted
-            });
-            
-            if (receiver.track.readyState === 'live') {
-              const existingStream = useVideoStore.getState().remoteStreams.get(targetUserId);
-              const streamToUse = existingStream || new MediaStream();
-              const trackExists = streamToUse.getTracks().some(t => t.id === receiver.track!.id);
-              
-              if (!trackExists) {
-                streamToUse.addTrack(receiver.track);
-                log(`✅ [Peer Connect] Track ${receiver.track.kind} ${receiver.track.id} agregado al stream de ${targetUserId}`);
-                
-                // Asegurar que el track esté habilitado
-                if (!receiver.track.enabled) {
-                  receiver.track.enabled = true;
-                  log(`🔄 [Peer Connect] Track ${receiver.track.id} habilitado`);
-                }
-                
-                addRemoteStream(targetUserId, streamToUse);
-              }
-            } else {
-              // Si el track no está live, esperar a que lo esté
-              const handleStateChange = () => {
-                if (receiver.track && receiver.track.readyState === 'live') {
-                  log(`📹 [Peer Connect] Track ${receiver.track.id} ahora está live`);
-                  const existingStream = useVideoStore.getState().remoteStreams.get(targetUserId);
-                  const streamToUse = existingStream || new MediaStream();
-                  const trackExists = streamToUse.getTracks().some(t => t.id === receiver.track!.id);
-                  
-                  if (!trackExists) {
-                    streamToUse.addTrack(receiver.track);
-                    if (!receiver.track.enabled) {
-                      receiver.track.enabled = true;
-                    }
-                    addRemoteStream(targetUserId, streamToUse);
-                  }
-                  
-                  receiver.track.removeEventListener('ended', handleStateChange);
-                }
-              };
-              
-              receiver.track.addEventListener('ended', handleStateChange);
-            }
+
+        peerPc.addEventListener('iceconnectionstatechange', () => {
+          const state = peerPc.iceConnectionState;
+          log(`🧊 ICE connection state para ${targetUserId}: ${state}`);
+          if (state === 'failed' || state === 'disconnected') {
+            log(`⚠️ ICE connection problemática para ${targetUserId}, estado: ${state}`);
           }
         });
 
-        // Agregar listener para nuevos tracks (esto es crítico para recibir tracks)
-        const trackHandler = (event: RTCTrackEvent) => {
-          log(`📹 [Peer Connect] Nuevo track recibido de ${targetUserId}:`, {
+        peerPc.addEventListener('connectionstatechange', () => {
+          const state = peerPc.connectionState;
+          log(`📡 Connection state para ${targetUserId}: ${state}`);
+          if (state === 'failed') {
+            logError(`❌ Peer connection falló para ${targetUserId}`);
+          }
+        });
+
+        peerPc.addEventListener('icecandidate', (event) => {
+          if (event.candidate) {
+            log(`🧊 ICE candidate generado para ${targetUserId}`);
+          } else {
+            log(`✅ Todos los ICE candidates generados para ${targetUserId}`);
+          }
+        });
+
+        peerPc.ontrack = (event) => {
+          log(`📹 Track recibido de ${targetUserId} (ontrack):`, {
             trackId: event.track.id,
             kind: event.track.kind,
             enabled: event.track.enabled,
             readyState: event.track.readyState,
             streamsCount: event.streams.length
           });
-          
-          // Asegurar que el track esté habilitado inmediatamente
+
           if (event.track.readyState === 'live' && !event.track.enabled) {
             event.track.enabled = true;
-            log(`🔄 [Peer Connect] Track ${event.track.id} habilitado en trackHandler`);
+            log(`🔄 Track ${event.track.id} habilitado`);
+          }
+
+          const trackSettings = event.track.getSettings ? event.track.getSettings() : {};
+          const isScreenTrack = trackSettings.displaySurface === 'monitor' || 
+                               trackSettings.displaySurface === 'window' ||
+                               event.track.label?.toLowerCase().includes('screen') ||
+                               event.track.label?.toLowerCase().includes('display');
+          
+          if (isScreenTrack) {
+            log(`📺 Detectado track de pantalla compartida de ${targetUserId} (ontrack)`);
+            updateParticipantState(targetUserId, { isScreenSharing: true }, setParticipants);
           }
           
           if (event.streams && event.streams.length > 0) {
-            handleRemoteStream(event.streams[0], targetUserId, addRemoteStream, setParticipants);
+            event.streams.forEach(stream => {
+              log(`📹 Procesando stream ${stream.id} de ${targetUserId} (ontrack)`);
+              handleRemoteStream(stream, targetUserId, addRemoteStream, addRemoteScreenStream, setParticipants);
+            });
           } else {
-            const existingStream = useVideoStore.getState().remoteStreams.get(targetUserId);
-            const streamToUse = existingStream || new MediaStream();
-            const trackExists = streamToUse.getTracks().some(t => t.id === event.track.id);
-            
-            if (!trackExists) {
-              streamToUse.addTrack(event.track);
-              if (!event.track.enabled && event.track.readyState === 'live') {
-                event.track.enabled = true;
-                log(`🔄 [Peer Connect] Track ${event.track.id} habilitado en trackHandler (sin streams)`);
-              }
-              handleRemoteStream(streamToUse, targetUserId, addRemoteStream, setParticipants);
-            }
+            // Si no hay stream asociado, crear uno temporal para procesar el track
+            const tempStream = new MediaStream([event.track]);
+            handleRemoteStream(tempStream, targetUserId, addRemoteStream, addRemoteScreenStream, setParticipants);
           }
         };
+      }
+
+      // Agregar tracks de cámara
+      addTracksToPeer(peer, currentStream).catch(err => {
+        logError(`Error inicial agregando tracks de cámara a peer ${targetUserId}:`, err);
+      });
+
+      // Agregar tracks de pantalla si está disponible
+      if (currentScreenStream) {
+        addTracksToPeer(peer, currentScreenStream).catch(err => {
+          logError(`Error inicial agregando tracks de pantalla a peer ${targetUserId}:`, err);
+        });
+      }
+
+      peer.on("connect", () => {
+        log(`✅ Peer connection establecida con ${targetUserId}`);
+        const pc = (peer as Peer.Instance & { _pc?: RTCPeerConnection })._pc;
+        if (!pc) {
+          logError(`❌ No hay RTCPeerConnection disponible para ${targetUserId}`);
+          return;
+        }
+
+        const receivers = pc.getReceivers();
+        log(`📡 Revisando ${receivers.length} receivers para ${targetUserId}`);
         
-        // Remover listener anterior si existe para evitar duplicados
-        pc.removeEventListener('track', trackHandler);
-        pc.addEventListener('track', trackHandler);
+        receivers.forEach((receiver, idx) => {
+          if (receiver.track) {
+            log(`📡 Receiver ${idx} para ${targetUserId}:`, {
+              trackId: receiver.track.id,
+              kind: receiver.track.kind,
+              enabled: receiver.track.enabled,
+              readyState: receiver.track.readyState
+            });
+
+            if (receiver.track.readyState === 'live') {
+              const trackSettings = receiver.track.getSettings ? receiver.track.getSettings() : {};
+              const isScreenTrack = trackSettings.displaySurface === 'monitor' || 
+                                   trackSettings.displaySurface === 'window' ||
+                                   receiver.track.label?.toLowerCase().includes('screen') ||
+                                   receiver.track.label?.toLowerCase().includes('display');
+              
+              if (isScreenTrack) {
+                const existingScreenStream = useVideoStore.getState().remoteScreenStreams.get(targetUserId);
+                const screenStreamToUse = existingScreenStream || new MediaStream();
+                const trackExists = screenStreamToUse.getTracks().some(t => t.id === receiver.track!.id);
+                
+                if (!trackExists) {
+                  screenStreamToUse.addTrack(receiver.track);
+                  if (!receiver.track.enabled) {
+                    receiver.track.enabled = true;
+                    log(`🔄 Track de pantalla habilitado`);
+                  }
+                  addRemoteScreenStream(targetUserId, screenStreamToUse);
+                  log(`✅ Track de pantalla agregado al stream de ${targetUserId}`);
+                }
+              } else {
+                const existingStream = useVideoStore.getState().remoteStreams.get(targetUserId);
+                const streamToUse = existingStream || new MediaStream();
+                const trackExists = streamToUse.getTracks().some(t => t.id === receiver.track!.id);
+                
+                if (!trackExists) {
+                  streamToUse.addTrack(receiver.track);
+                  if (!receiver.track.enabled) {
+                    receiver.track.enabled = true;
+                    log(`🔄 Track ${receiver.track.kind} habilitado`);
+                  }
+                  addRemoteStream(targetUserId, streamToUse);
+                  log(`✅ Track ${receiver.track.kind} agregado al stream de ${targetUserId}`);
+                }
+              }
+            } else {
+              log(`⏳ Track ${receiver.track.kind} no está live aún (${receiver.track.readyState})`);
+            }
+          }
+        });
+
+        setupTrackHandlers(pc, targetUserId, addRemoteStream, addRemoteScreenStream, setParticipants);
       });
 
       peer.on("signal", (data) => {
@@ -383,88 +642,31 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
         const signalType = initiator ? "offer" : "answer";
         try {
           videoService.sendSignal({ type: signalType, roomId: currentRoom.id, targetUserId, data });
-          log(`Señal ${signalType} enviada a ${targetUserId}`);
+          log(`📤 Señal ${signalType} enviada a ${targetUserId}`);
         } catch (err) {
           logError(`Error enviando señal ${signalType}:`, err);
         }
       });
 
-      // Configurar ontrack directamente en RTCPeerConnection como respaldo
-      const pc = (peer as Peer.Instance & { _pc?: RTCPeerConnection })._pc;
-      if (pc) {
-        // Remover handler anterior si existe
-        pc.ontrack = null;
-        
-        pc.ontrack = (event) => {
-          log(`📹 [ontrack] Track recibido de ${targetUserId}:`, {
-            trackId: event.track.id,
-            kind: event.track.kind,
-            enabled: event.track.enabled,
-            readyState: event.track.readyState,
-            streamsCount: event.streams.length
-          });
-          
-          // Asegurar que el track esté habilitado inmediatamente
-          if (event.track.readyState === 'live' && !event.track.enabled) {
-            event.track.enabled = true;
-            log(`🔄 [ontrack] Track ${event.track.id} habilitado`);
-          }
-          
-          if (event.streams && event.streams.length > 0) {
-            handleRemoteStream(event.streams[0], targetUserId, addRemoteStream, setParticipants);
-          } else {
-            const existingStream = useVideoStore.getState().remoteStreams.get(targetUserId);
-            const streamToUse = existingStream || new MediaStream();
-            const trackExists = streamToUse.getTracks().some(t => t.id === event.track.id);
-            
-            if (!trackExists) {
-              streamToUse.addTrack(event.track);
-              if (!event.track.enabled && event.track.readyState === 'live') {
-                event.track.enabled = true;
-                log(`🔄 [ontrack] Track ${event.track.id} habilitado (sin streams)`);
-              }
-              handleRemoteStream(streamToUse, targetUserId, addRemoteStream, setParticipants);
-            }
-          }
-        };
-        
-        // También agregar listener de eventos de conexión para debugging
-        pc.addEventListener('connectionstatechange', () => {
-          log(`📡 [Peer] Estado de conexión cambió para ${targetUserId}:`, {
-            connectionState: pc.connectionState,
-            iceConnectionState: pc.iceConnectionState
-          });
-        });
-        
-        pc.addEventListener('iceconnectionstatechange', () => {
-          log(`🧊 [Peer] Estado ICE cambió para ${targetUserId}:`, {
-            iceConnectionState: pc.iceConnectionState,
-            connectionState: pc.connectionState
-          });
-        });
-      }
-
       peer.on("stream", (remoteStream) => {
-        log(`📹 [peer.on("stream")] Stream recibido de ${targetUserId}:`, {
+        log(`📹 Stream recibido de ${targetUserId}:`, {
           streamId: remoteStream.id,
           videoTracks: remoteStream.getVideoTracks().length,
-          audioTracks: remoteStream.getAudioTracks().length
+          audioTracks: remoteStream.getAudioTracks().length,
+          videoTrackIds: remoteStream.getVideoTracks().map(t => t.id),
+          audioTrackIds: remoteStream.getAudioTracks().map(t => t.id)
         });
-        handleRemoteStream(remoteStream, targetUserId, addRemoteStream, setParticipants);
+        handleRemoteStream(remoteStream, targetUserId, addRemoteStream, addRemoteScreenStream, setParticipants);
       });
 
       peer.on("error", (err) => {
         const errorMessage = err instanceof Error ? err.message : String(err);
         logError(`Error en peer connection con ${targetUserId}:`, err);
         
-        // No destruir el peer si es un error de conexión temporal
-        // Los errores de conexión pueden ser temporales y el peer puede recuperarse
         if (errorMessage.includes('Connection failed') || errorMessage.includes('ICE')) {
-          log(`⚠️ [Peer Error] Error de conexión temporal con ${targetUserId}, intentando recuperar...`);
           return;
         }
         
-        // Para otros errores, limpiar el peer
         const peer = peersRef.current.get(targetUserId);
         if (peer) {
           peer.destroy();
@@ -480,7 +682,7 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
 
       return peer;
     },
-    [addRemoteStream, removeRemoteStream, setParticipants]
+    [addRemoteStream, addRemoteScreenStream, removeRemoteStream, setParticipants]
   );
 
   const connect = useCallback(async () => {
@@ -554,14 +756,10 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
 
       if (!listenersRegisteredRef.current) {
         videoService.onRoomCreated((room) => {
-          log(`Room created: ${room.id}, chatRoomId: ${room.chatRoomId || 'none'}`);
           setCurrentRoom(room);
         });
 
         videoService.onRoomJoined(async ({ room, participants: roomParticipants }) => {
-          log(`Room joined: ${room.id}, chatRoomId: ${room.chatRoomId || 'none'}, chatRoomCode: ${room.chatRoomCode || 'none'}`);
-          log(`Participantes recibidos del backend: ${roomParticipants.length}`);
-          
           setCurrentRoom(room);
           setParticipants(roomParticipants);
 
@@ -572,18 +770,11 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
           }
 
           await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          log(`Sala ${room.id} inicializada correctamente con ${roomParticipants.length} participantes`);
         });
 
         videoService.onUserJoined(async ({ userId, userName }) => {
           const currentUserId = getCurrentUserId();
-          if (userId === currentUserId) {
-            log(`Ignorando evento de usuario propio: ${userId}`);
-            return;
-          }
-
-          log(`Usuario ${userId} se unió a la sala${userName ? ` (${userName})` : ''}`);
+          if (userId === currentUserId) return;
 
           const currentParticipants = useVideoStore.getState().participants;
           const safeParticipants = Array.isArray(currentParticipants) ? currentParticipants : [];
@@ -599,16 +790,18 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
               isScreenSharing: false,
               joinedAt: new Date(),
             };
-            const updatedParticipants = [...safeParticipants, newParticipant];
-            setParticipants(updatedParticipants);
-            log(`Participante ${userId} agregado. Total participantes: ${updatedParticipants.length}`);
-          } else {
-            log(`Participante ${userId} ya existe en la lista`);
+            setParticipants([...safeParticipants, newParticipant]);
           }
 
           if (peersRef.current.has(userId)) {
             const existingPeer = peersRef.current.get(userId);
-            if (existingPeer && !existingPeer.destroyed) return;
+            if (existingPeer && !existingPeer.destroyed) {
+              const currentStream = useVideoStore.getState().localStream;
+              if (currentStream) {
+                addTracksToPeer(existingPeer, currentStream);
+              }
+              return;
+            }
             peersRef.current.delete(userId);
           }
 
@@ -631,28 +824,29 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
         });
 
         videoService.onUserLeft(({ userId }) => {
-          log(`Usuario ${userId} se salió de la sala`);
-          
-          // Limpiar peer connection
           const peer = peersRef.current.get(userId);
           if (peer) {
             peer.destroy();
             peersRef.current.delete(userId);
           }
           
-          // Eliminar stream remoto
           removeRemoteStream(userId);
           
-          // Actualizar lista de participantes - eliminar del store
           const currentParticipants = useVideoStore.getState().participants;
           const safeParticipants = Array.isArray(currentParticipants) ? currentParticipants : [];
           const updatedParticipants = safeParticipants.filter(p => p.userId !== userId);
           setParticipants(updatedParticipants);
-          
-          log(`Participante ${userId} eliminado. Total participantes: ${updatedParticipants.length}`);
         });
 
-        videoService.onSignal(async ({ type, fromUserId, data }) => {
+        videoService.onSignal(async ({ type, fromUserId, data, metadata }) => {
+          if (metadata?.isScreenSharing) {
+            log(`📺 Señal de screen sharing recibida de ${fromUserId}`);
+            updateParticipantState(fromUserId, { isScreenSharing: true }, setParticipants);
+          } else if (metadata?.streamType === 'camera') {
+            log(`📹 Señal de cámara recibida de ${fromUserId}`);
+            updateParticipantState(fromUserId, { isScreenSharing: false }, setParticipants);
+          }
+          
           let peer = peersRef.current.get(fromUserId);
 
           if (!peer && type === "offer") {
@@ -716,86 +910,70 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
                     (state === 'have-remote-offer' && type === 'answer') ||
                     (state === 'have-local-offer' && type === 'answer')) {
                   return;
+                }
               }
+              peer.signal(data as Peer.SignalData);
+            } catch (err) {
+              if (err instanceof Error && (err.message.includes('wrong state') || err.message.includes('InvalidStateError'))) {
+                return;
+              }
+              logError(`Error procesando señal ${type}:`, err);
             }
-            peer.signal(data as Peer.SignalData);
-          } catch (err) {
-            if (err instanceof Error && (err.message.includes('wrong state') || err.message.includes('InvalidStateError'))) {
-              return;
-            }
-            logError(`Error procesando señal ${type}:`, err);
           }
-        }
-      });
+        });
 
         videoService.onAudioToggled(({ userId, enabled }) => {
-          log(`Usuario ${userId} ${enabled ? 'habilitó' : 'deshabilitó'} audio`);
-          
-          const currentParticipants = useVideoStore.getState().participants;
-          if (Array.isArray(currentParticipants)) {
-            const updatedParticipants = currentParticipants.map((p) =>
-              p.userId === userId ? { ...p, isAudioEnabled: enabled } : p
-            );
-            setParticipants(updatedParticipants);
-          }
+          updateParticipantState(userId, { isAudioEnabled: enabled }, setParticipants);
 
           const remoteStream = useVideoStore.getState().remoteStreams.get(userId);
           if (remoteStream) {
             remoteStream.getAudioTracks().forEach((track) => { 
               track.enabled = enabled;
-              log(`Audio track ${track.id} de ${userId} ${enabled ? 'habilitado' : 'deshabilitado'}`);
             });
           }
         });
 
         videoService.onVideoToggled(({ userId, enabled }) => {
-          log(`Usuario ${userId} ${enabled ? 'habilitó' : 'deshabilitó'} video`);
-          
-          const currentParticipants = useVideoStore.getState().participants;
-          if (Array.isArray(currentParticipants)) {
-            const updatedParticipants = currentParticipants.map((p) =>
-              p.userId === userId ? { ...p, isVideoEnabled: enabled } : p
-            );
-            setParticipants(updatedParticipants);
-          }
+          updateParticipantState(userId, { isVideoEnabled: enabled }, setParticipants);
 
           const remoteStream = useVideoStore.getState().remoteStreams.get(userId);
           if (remoteStream) {
             remoteStream.getVideoTracks().forEach((track) => { 
               track.enabled = enabled;
-              log(`Video track ${track.id} de ${userId} ${enabled ? 'habilitado' : 'deshabilitado'}`);
             });
           }
         });
 
-        videoService.onScreenToggled(() => {});
+        videoService.onScreenToggled(({ userId, enabled }) => {
+          updateParticipantState(userId, { isScreenSharing: enabled }, setParticipants);
+        });
+
+        videoService.onScreenStarted(({ userId }) => {
+          updateParticipantState(userId, { isScreenSharing: true }, setParticipants);
+        });
+
+        videoService.onScreenStopped(({ userId }) => {
+          updateParticipantState(userId, { isScreenSharing: false }, setParticipants);
+        });
 
         videoService.onRoomEnded(() => {
-          log(`La sala ha sido finalizada por el host`);
-          
-          // Limpiar todos los peers
           peersRef.current.forEach((peer) => peer.destroy());
           peersRef.current.clear();
           
-          // Detener stream local
           const stream = useVideoStore.getState().localStream;
           if (stream) {
             stream.getTracks().forEach((track) => track.stop());
             setLocalStream(null);
           }
           
-          // Limpiar streams remotos
           const remoteStreams = useVideoStore.getState().remoteStreams;
           remoteStreams.forEach((stream) => {
             stream.getTracks().forEach((track) => track.stop());
           });
           remoteStreams.forEach((_, userId) => removeRemoteStream(userId));
           
-          // Limpiar estado
           setCurrentRoom(null);
           setParticipants([]);
-          
-          log(`Sala finalizada - estado limpiado`);
         });
 
         videoService.onError((err) => {
@@ -948,19 +1126,19 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
           setError({ message: "Failed to connect to video service", code: "CONNECTION_FAILED" });
           return;
         }
+      }
 
-        let attempts = 0;
-        const maxAttempts = 30;
-        while ((!videoServiceRef.current || !videoServiceRef.current.isConnected()) && attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 300));
-          attempts++;
-        }
+      let attempts = 0;
+      const maxAttempts = 30;
+      while ((!videoServiceRef.current || !videoServiceRef.current.isConnected()) && attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 300));
+        attempts++;
+      }
 
-        if (!videoServiceRef.current || !videoServiceRef.current.isConnected()) {
-          joiningRoomRef.current = null;
-          setError({ message: "Not connected to video service", code: "NOT_CONNECTED" });
-          return;
-        }
+      if (!videoServiceRef.current || !videoServiceRef.current.isConnected()) {
+        joiningRoomRef.current = null;
+        setError({ message: "Not connected to video service", code: "NOT_CONNECTED" });
+        return;
       }
 
       if (!listenersRegisteredRef.current) {
@@ -981,7 +1159,6 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
   const leaveRoom = useCallback(() => {
     if (!videoServiceRef.current || !currentRoom) return;
 
-    processedRoomsRef.current.delete(currentRoom.id);
     peersRef.current.forEach((peer) => peer.destroy());
     peersRef.current.clear();
 
@@ -1006,12 +1183,7 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
       const storeState = useVideoStore.getState();
       const room = storeState.currentRoom;
 
-      if (!videoServiceRef.current) {
-        setAudioEnabled(enabled);
-        return;
-      }
-
-      if (!room) {
+      if (!videoServiceRef.current || !room) {
         setAudioEnabled(enabled);
         return;
       }
@@ -1056,17 +1228,16 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
     [setAudioEnabled, getLocalStream]
   );
 
+  /**
+   * Activa o desactiva el video de cámara (no afecta la pantalla compartida)
+   * @param {boolean} enabled - Si habilitar o deshabilitar el video
+   */
   const toggleVideo = useCallback(
     async (enabled: boolean) => {
       const storeState = useVideoStore.getState();
       const room = storeState.currentRoom;
 
-      if (!videoServiceRef.current) {
-        setVideoEnabled(enabled);
-        return;
-      }
-
-      if (!room) {
+      if (!videoServiceRef.current || !room) {
         setVideoEnabled(enabled);
         return;
       }
@@ -1085,7 +1256,19 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
           if (!stream) return;
         }
 
-        stream.getVideoTracks().forEach((track) => { track.enabled = enabled; });
+        // Solo deshabilitar tracks de cámara del localStream (no pantalla, que está en localScreenStream)
+        stream.getVideoTracks().forEach((track) => { 
+          // Verificar que no sea un track de pantalla (por si acaso)
+          const settings = track.getSettings ? track.getSettings() : {};
+          const isScreenTrack = settings.displaySurface === 'monitor' || 
+                               settings.displaySurface === 'window' ||
+                               track.label?.toLowerCase().includes('screen') ||
+                               track.label?.toLowerCase().includes('display');
+          
+          if (!isScreenTrack) {
+            track.enabled = enabled;
+          }
+        });
         setVideoEnabled(enabled);
 
         try {
@@ -1094,13 +1277,26 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
           logError('Error notificando cambio de video:', err);
         }
 
+        // Actualizar tracks en los peers - solo los de cámara, no los de pantalla
         peersRef.current.forEach((peer) => {
           const pc = (peer as Peer.Instance & { _pc?: RTCPeerConnection })._pc;
           if (pc) {
             const senders = pc.getSenders();
             const videoSenders = senders.filter((s: RTCRtpSender) => s.track && s.track.kind === 'video');
             videoSenders.forEach((sender: RTCRtpSender) => {
-              if (sender.track) sender.track.enabled = enabled;
+              if (sender.track) {
+                // Verificar si es un track de pantalla compartida
+                const settings = sender.track.getSettings ? sender.track.getSettings() : {};
+                const isScreenTrack = settings.displaySurface === 'monitor' || 
+                                     settings.displaySurface === 'window' ||
+                                     sender.track.label?.toLowerCase().includes('screen') ||
+                                     sender.track.label?.toLowerCase().includes('display');
+                
+                // Solo deshabilitar tracks de cámara, mantener los de pantalla activos
+                if (!isScreenTrack) {
+                  sender.track.enabled = enabled;
+                }
+              }
             });
           }
         });
@@ -1113,76 +1309,149 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
 
   const toggleScreenShare = useCallback(
     async (enabled: boolean): Promise<void> => {
-      if (!videoServiceRef.current || !currentRoom) return;
+      if (!videoServiceRef.current || !currentRoom) {
+        logError("No video service or room available for screen sharing");
+        return;
+      }
+
+      const handleStopScreenShare = async () => {
+        try {
+          log("🛑 Deteniendo screen sharing...");
+          
+          const currentScreenStream = useVideoStore.getState().localScreenStream;
+          if (currentScreenStream) {
+            // Detener todos los tracks del stream de pantalla
+            currentScreenStream.getTracks().forEach(track => {
+              track.stop();
+            });
+            setLocalScreenStream(null);
+            log("✅ Stream de pantalla detenido");
+          }
+
+          // Remover tracks de pantalla de todos los peers
+          const removePromises: Promise<void>[] = [];
+          peersRef.current.forEach((peer, userId) => {
+            if (peer.destroyed) return;
+
+            const pc = (peer as Peer.Instance & { _pc?: RTCPeerConnection })._pc;
+            if (!pc || pc.signalingState === 'closed') return;
+
+            const senders = pc.getSenders();
+            senders.forEach((sender: RTCRtpSender) => {
+              if (sender.track) {
+                const settings = sender.track.getSettings ? sender.track.getSettings() : {};
+                const isScreenTrack = settings.displaySurface === 'monitor' || 
+                                     settings.displaySurface === 'window' ||
+                                     sender.track.label?.toLowerCase().includes('screen') ||
+                                     sender.track.label?.toLowerCase().includes('display');
+                
+                if (isScreenTrack) {
+                  const removePromise = sender.replaceTrack(null).then(() => {
+                    log(`✅ Track de pantalla removido de peer ${userId}`);
+                  }).catch(err => {
+                    logError(`Error removiendo track de pantalla de peer ${userId}:`, err);
+                  });
+                  removePromises.push(removePromise);
+                }
+              }
+            });
+          });
+
+          await Promise.all(removePromises);
+          
+          // Limpiar streams remotos de pantalla
+          const currentUserId = getCurrentUserId();
+          const remoteScreenStreams = useVideoStore.getState().remoteScreenStreams;
+          remoteScreenStreams.forEach((_, userId) => {
+            if (userId !== currentUserId) {
+              removeRemoteScreenStream(userId);
+            }
+          });
+          
+          setScreenSharing(false);
+          
+          if (videoServiceRef.current && currentRoom) {
+            videoServiceRef.current.stopScreenShare(currentRoom.id);
+            log("📡 Notificación de detención enviada al servidor");
+          }
+        } catch (err) {
+          logError("Error deteniendo screen share:", err);
+          setScreenSharing(false);
+        }
+      };
 
       try {
         if (enabled) {
-          const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+          log("📺 Iniciando screen sharing...");
+          
+          const screenStream = await navigator.mediaDevices.getDisplayMedia({ 
+            video: { 
+              width: { ideal: 1920 }, 
+              height: { ideal: 1080 },
+              frameRate: { ideal: 30 }
+            }, 
+            audio: true 
+          });
+          
           const screenVideoTrack = screenStream.getVideoTracks()[0];
-
-          peersRef.current.forEach((peer) => {
-            const senders = (peer as Peer.Instance & { _pc: RTCPeerConnection })._pc.getSenders();
-            const videoSender = senders.find((s: RTCRtpSender) => s.track && s.track.kind === "video");
-            if (videoSender) {
-              videoSender.replaceTrack(screenVideoTrack);
-            }
-          });
-
-          screenVideoTrack.onended = () => {
-            const currentStream = useVideoStore.getState().localStream;
-            if (currentStream) {
-              navigator.mediaDevices.getUserMedia({
-                video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-              }).then((cameraStream) => {
-                const cameraVideoTrack = cameraStream.getVideoTracks()[0];
-                peersRef.current.forEach((peer) => {
-                  const senders = (peer as Peer.Instance & { _pc: RTCPeerConnection })._pc.getSenders();
-                  const videoSender = senders.find((s: RTCRtpSender) => s.track && s.track.kind === "video");
-                  if (videoSender) {
-                    videoSender.replaceTrack(cameraVideoTrack);
-                  }
-                });
-                setScreenSharing(false);
-              });
-            }
-          };
-
-          setScreenSharing(true);
-          videoServiceRef.current.toggleScreen(currentRoom.id, true);
-        } else {
-          const cameraStream = await navigator.mediaDevices.getUserMedia({
-            video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-          });
-
-          const cameraVideoTrack = cameraStream.getVideoTracks()[0];
-
-          peersRef.current.forEach((peer) => {
-            const senders = (peer as Peer.Instance & { _pc: RTCPeerConnection })._pc.getSenders();
-            const videoSender = senders.find((s: RTCRtpSender) => s.track && s.track.kind === "video");
-            if (videoSender) {
-              videoSender.replaceTrack(cameraVideoTrack);
-            }
-          });
-
-          const currentStream = useVideoStore.getState().localStream;
-          if (currentStream) {
-            const oldVideoTrack = currentStream.getVideoTracks()[0];
-            currentStream.removeTrack(oldVideoTrack);
-            currentStream.addTrack(cameraVideoTrack);
+          if (!screenVideoTrack) {
+            throw new Error("No se pudo obtener el track de video de la pantalla");
           }
 
-          setScreenSharing(false);
-          videoServiceRef.current.toggleScreen(currentRoom.id, false);
+          log("✅ Stream de pantalla obtenido");
+
+          screenVideoTrack.onended = () => {
+            log("📺 Usuario detuvo screen sharing desde el navegador");
+            handleStopScreenShare();
+          };
+
+          // Crear un stream separado para la pantalla
+          const newScreenStream = new MediaStream([screenVideoTrack]);
+          if (screenStream.getAudioTracks().length > 0) {
+            newScreenStream.addTrack(screenStream.getAudioTracks()[0]);
+          }
+          setLocalScreenStream(newScreenStream);
+
+          // Agregar tracks de pantalla a todos los peers
+          const addPromises: Promise<void>[] = [];
+          peersRef.current.forEach((peer, userId) => {
+            if (peer.destroyed) return;
+            const addPromise = addTracksToPeer(peer, newScreenStream).catch(err => {
+              logError(`Error agregando tracks de pantalla a peer ${userId}:`, err);
+            });
+            addPromises.push(addPromise);
+          });
+
+          await Promise.all(addPromises);
+          log("✅ Track de pantalla agregado a todos los peers");
+
+          setScreenSharing(true);
+          
+          if (videoServiceRef.current && currentRoom) {
+            videoServiceRef.current.startScreenShare(currentRoom.id);
+            log("📡 Notificación de inicio enviada al servidor");
+          }
+        } else {
+          await handleStopScreenShare();
         }
       } catch (error) {
         logError("Error toggling screen share:", error);
-        setError({
-          message: error instanceof Error ? error.message : "Failed to toggle screen share",
-          code: "SCREEN_SHARE_ERROR",
-        });
+        
+        if (error instanceof Error && error.name === "NotAllowedError") {
+          setError({
+            message: "Permiso denegado para compartir pantalla",
+            code: "PERMISSION_DENIED",
+          });
+        } else {
+          setError({
+            message: error instanceof Error ? error.message : "Failed to toggle screen share",
+            code: "SCREEN_SHARE_ERROR",
+          });
+        }
+        setScreenSharing(false);
       }
     },
-    [currentRoom, setScreenSharing, setError]
+    [currentRoom, setScreenSharing, setError, setLocalScreenStream, removeRemoteScreenStream]
   );
 
   return {
@@ -1192,7 +1461,9 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
     currentRoom,
     participants,
     localStream,
+    localScreenStream,
     remoteStreams,
+    remoteScreenStreams,
     isAudioEnabled,
     isVideoEnabled,
     isScreenSharing,
@@ -1207,4 +1478,3 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
     getLocalStream,
   };
 };
-
