@@ -1155,7 +1155,19 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
           if (!stream) return;
         }
 
-        stream.getVideoTracks().forEach((track) => { track.enabled = enabled; });
+        // Solo deshabilitar tracks de cámara del localStream (no pantalla, que está en localScreenStream)
+        stream.getVideoTracks().forEach((track) => { 
+          // Verificar que no sea un track de pantalla (por si acaso)
+          const settings = track.getSettings ? track.getSettings() : {};
+          const isScreenTrack = settings.displaySurface === 'monitor' || 
+                               settings.displaySurface === 'window' ||
+                               track.label?.toLowerCase().includes('screen') ||
+                               track.label?.toLowerCase().includes('display');
+          
+          if (!isScreenTrack) {
+            track.enabled = enabled;
+          }
+        });
         setVideoEnabled(enabled);
 
         try {
@@ -1164,13 +1176,26 @@ export const useVideoCall = (useGateway = false): UseVideoCallReturn => {
           logError('Error notificando cambio de video:', err);
         }
 
+        // Actualizar tracks en los peers - solo los de cámara, no los de pantalla
         peersRef.current.forEach((peer) => {
           const pc = (peer as Peer.Instance & { _pc?: RTCPeerConnection })._pc;
           if (pc) {
             const senders = pc.getSenders();
             const videoSenders = senders.filter((s: RTCRtpSender) => s.track && s.track.kind === 'video');
             videoSenders.forEach((sender: RTCRtpSender) => {
-              if (sender.track) sender.track.enabled = enabled;
+              if (sender.track) {
+                // Verificar si es un track de pantalla compartida
+                const settings = sender.track.getSettings ? sender.track.getSettings() : {};
+                const isScreenTrack = settings.displaySurface === 'monitor' || 
+                                     settings.displaySurface === 'window' ||
+                                     sender.track.label?.toLowerCase().includes('screen') ||
+                                     sender.track.label?.toLowerCase().includes('display');
+                
+                // Solo deshabilitar tracks de cámara, mantener los de pantalla activos
+                if (!isScreenTrack) {
+                  sender.track.enabled = enabled;
+                }
+              }
             });
           }
         });
