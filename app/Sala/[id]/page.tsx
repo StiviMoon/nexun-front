@@ -56,13 +56,17 @@ export default function SalaPage({ params }: PageProps) {
     joinRoom,
     leaveRoom: leaveVideoRoom,
     localStream,
+    localScreenStream,
     remoteStreams,
+    remoteScreenStreams,
     currentRoom,
     participants: videoParticipants,
     isAudioEnabled,
     isVideoEnabled,
+    isScreenSharing,
     toggleAudio,
     toggleVideo,
+    toggleScreenShare,
     isConnected,
     error: videoError,
     getLocalStream,
@@ -115,9 +119,11 @@ export default function SalaPage({ params }: PageProps) {
 
     return () => {
       clearTimeout(fetchTimeout);
-      leaveChatRoom(chatRoomId);
+      if (chatRoomId) {
+        leaveChatRoom(chatRoomId);
+      }
     };
-  }, [currentRoom?.chatRoomId, currentRoom?.chatRoomCode, isChatConnected, joinChatRoom, leaveChatRoom, getChatMessages]);
+  }, [currentRoom, isChatConnected, joinChatRoom, leaveChatRoom, getChatMessages]);
 
   // Conectar y unirse a la sala al montar - usar ref para evitar múltiples ejecuciones
   const hasInitializedRef = useRef(false);
@@ -214,7 +220,9 @@ export default function SalaPage({ params }: PageProps) {
       isMuted: !isAudioEnabled,
       isCameraOff: !isVideoEnabled,
       isHost: currentRoom?.hostId === currentUserId,
+      isScreenSharing: isScreenSharing,
       stream: localStream || undefined,
+      screenStream: localScreenStream || undefined,
     });
 
     // Función para obtener info del usuario (nombre y foto)
@@ -241,7 +249,7 @@ export default function SalaPage({ params }: PageProps) {
                 avatar: avatar || undefined,
               };
             }
-          } catch (timeoutErr) {
+          } catch {
             // Timeout o error de permisos - continuar con fallback
             console.warn(`⚠️ [SALA_PAGE] Timeout o error obteniendo info de usuario ${userId} desde Firestore`);
           }
@@ -282,8 +290,14 @@ export default function SalaPage({ params }: PageProps) {
       }
     });
     
-    // Agregar IDs de participantes con stream
+    // Agregar IDs de participantes con stream (cámara o pantalla)
     remoteStreams.forEach((_, userId) => {
+      if (userId !== currentUserId) {
+        allParticipantIds.add(userId);
+      }
+    });
+    
+    remoteScreenStreams.forEach((_, userId) => {
       if (userId !== currentUserId) {
         allParticipantIds.add(userId);
       }
@@ -294,6 +308,7 @@ export default function SalaPage({ params }: PageProps) {
       Array.from(allParticipantIds).map(async (userId) => {
         const participant = safeVideoParticipants.find((p) => p.userId === userId);
         const stream = remoteStreams.get(userId);
+        const screenStream = remoteScreenStreams.get(userId);
         
         // Obtener info del usuario (nombre y foto)
         const userInfo = await fetchUserInfo(userId);
@@ -309,6 +324,8 @@ export default function SalaPage({ params }: PageProps) {
           isCameraOff: participant ? !participant.isVideoEnabled : true,
           isHost: currentRoom?.hostId === userId,
           stream: stream || undefined,
+          screenStream: screenStream || undefined,
+          isScreenSharing: participant?.isScreenSharing || false,
         };
       })
     ).then((remoteParticipants) => {
@@ -320,7 +337,7 @@ export default function SalaPage({ params }: PageProps) {
       });
       setParticipants(sortedParticipants);
     });
-  }, [localStream, remoteStreams, videoParticipants, isAudioEnabled, isVideoEnabled, currentRoom]);
+  }, [localStream, localScreenStream, remoteStreams, remoteScreenStreams, videoParticipants, isAudioEnabled, isVideoEnabled, isScreenSharing, currentRoom]);
 
   // Actualizar nombre de la reunión desde el room actual (prioridad al backend)
   useEffect(() => {
@@ -400,6 +417,14 @@ export default function SalaPage({ params }: PageProps) {
     }
   };
 
+  const handleToggleScreenShare = async () => {
+    try {
+      await toggleScreenShare(!isScreenSharing);
+    } catch {
+      console.error('Error toggling screen share');
+    }
+  };
+
   // Estado para sidebar
   const [activeTab, setActiveTab] = useState<'participants' | 'chat'>('participants');
   const authInstance = getFirebaseAuth();
@@ -474,7 +499,7 @@ export default function SalaPage({ params }: PageProps) {
       />
 
       {/* Main Content - Responsive Layout */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0 gap-0">
         {/* Video Area - Full width on mobile, flex-1 on desktop */}
         <div className="flex-1 flex flex-col min-h-0 order-2 lg:order-1">
           <VideoGrid
@@ -485,7 +510,7 @@ export default function SalaPage({ params }: PageProps) {
         </div>
 
         {/* Right column: Sidebar + ControlBar - Hidden on mobile, shown on desktop */}
-        <div className="hidden lg:flex w-64 flex-col min-h-0 order-1 lg:order-2">
+        <div className="hidden lg:flex w-64 flex-col min-h-0 order-1 lg:order-2 border-l border-zinc-800">
           <div className="flex-1 min-h-0 overflow-auto">
             <Sidebar
               activeTab={activeTab}
@@ -497,12 +522,14 @@ export default function SalaPage({ params }: PageProps) {
             />
           </div>
 
-          <div>
+          <div className="border-t border-zinc-800">
             <ControlBar
               isMuted={!isAudioEnabled}
               isCameraOff={!isVideoEnabled}
+              isScreenSharing={isScreenSharing}
               onToggleMute={() => handleToggleMute()}
               onToggleCamera={() => handleToggleCamera()}
+              onToggleScreenShare={() => handleToggleScreenShare()}
               onLeave={handleLeave}
               roomId={roomId}
             />
@@ -515,8 +542,10 @@ export default function SalaPage({ params }: PageProps) {
         <ControlBar
           isMuted={!isAudioEnabled}
           isCameraOff={!isVideoEnabled}
+          isScreenSharing={isScreenSharing}
           onToggleMute={() => handleToggleMute()}
           onToggleCamera={() => handleToggleCamera()}
+          onToggleScreenShare={() => handleToggleScreenShare()}
           onLeave={handleLeave}
           roomId={roomId}
         />

@@ -6,7 +6,9 @@ export interface Participant {
   isCameraOff: boolean;
   isHost?: boolean;
   isSpeaking?: boolean;
-  stream?: MediaStream;
+  isScreenSharing?: boolean;
+  stream?: MediaStream; // Stream de cámara
+  screenStream?: MediaStream; // Stream de pantalla compartida
 }
 
 export interface MeetingRoom {

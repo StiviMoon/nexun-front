@@ -2,7 +2,7 @@
 
 import { RefObject, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
-import { User, MicOff, VideoOff, Mic, Video } from 'lucide-react';
+import { User, MicOff, VideoOff, Mic, Video, Monitor } from 'lucide-react';
 import { Participant } from '@/types/meetingRoom';
 
 interface ParticipantVideoProps {
@@ -19,9 +19,12 @@ export function ParticipantVideo({
   videoRef,
 }: ParticipantVideoProps) {
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteScreenRef = useRef<HTMLVideoElement>(null);
   const videoElement = videoRef || remoteVideoRef;
   const [videoTrackEnabled, setVideoTrackEnabled] = useState<boolean>(false);
+  const [screenTrackEnabled, setScreenTrackEnabled] = useState<boolean>(false);
   const tracksRef = useRef<MediaStreamTrack[]>([]);
+  const screenTracksRef = useRef<MediaStreamTrack[]>([]);
 
   // Detectar cambios en el estado del video track
   useEffect(() => {
@@ -81,13 +84,68 @@ export function ParticipantVideo({
     };
   }, [participant.stream, participant.name]);
 
+  // Detectar cambios en el estado del stream de pantalla
+  useEffect(() => {
+    if (!participant.screenStream) {
+      setTimeout(() => {
+        setScreenTrackEnabled(false);
+        screenTracksRef.current = [];
+      }, 0);
+      return;
+    }
+
+    const screenTracks = participant.screenStream.getVideoTracks();
+    screenTracksRef.current = screenTracks;
+
+    const updateScreenTrackState = () => {
+      const hasActiveScreenTrack = screenTracks.length > 0 && 
+                                  screenTracks[0].readyState === 'live' && 
+                                  screenTracks[0].enabled;
+      setScreenTrackEnabled(hasActiveScreenTrack);
+    };
+
+    setTimeout(() => {
+      updateScreenTrackState();
+    }, 0);
+
+    const trackListeners: Array<() => void> = [];
+    screenTracks.forEach(track => {
+      const handleEnabledChange = () => {
+        updateScreenTrackState();
+      };
+      
+      const handleStateChange = () => {
+        updateScreenTrackState();
+      };
+
+      track.addEventListener('enabledchange', handleEnabledChange);
+      track.addEventListener('ended', handleStateChange);
+      track.addEventListener('mute', handleStateChange);
+      track.addEventListener('unmute', handleStateChange);
+
+      trackListeners.push(() => {
+        track.removeEventListener('enabledchange', handleEnabledChange);
+        track.removeEventListener('ended', handleStateChange);
+        track.removeEventListener('mute', handleStateChange);
+        track.removeEventListener('unmute', handleStateChange);
+      });
+    });
+
+    return () => {
+      trackListeners.forEach(cleanup => cleanup());
+    };
+  }, [participant.screenStream]);
+
   // Actualizar stream del video cuando cambia
   useEffect(() => {
+    if (!participant.stream) return;
+    
     // Esperar un frame para asegurar que el elemento esté montado
     const timeoutId = setTimeout(() => {
       const videoEl = videoElement.current;
       if (!videoEl) {
-        console.warn(`⚠️ [ParticipantVideo] No hay elemento de video para ${participant.name} (después de timeout)`);
+        // El elemento no está montado, esto es normal si el video track no está habilitado
+        // No mostrar warning ya que es un caso esperado
         return;
       }
     
@@ -315,6 +373,41 @@ export function ParticipantVideo({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [participant.stream, videoElement, participant.name]); // videoRef es estable, no necesita estar en deps
 
+  const hasScreenStream = participant.screenStream && screenTrackEnabled;
+  const hasCameraStream = participant.stream && videoTrackEnabled;
+
+  // Actualizar stream de pantalla cuando cambia
+  useEffect(() => {
+    if (!participant.screenStream || !hasScreenStream) return;
+    
+    // Esperar un frame para asegurar que el elemento esté montado
+    const timeoutId = setTimeout(() => {
+      const screenEl = remoteScreenRef.current;
+      if (!screenEl) {
+        // El elemento aún no está montado, esto es normal durante el renderizado inicial
+        return;
+      }
+    
+      const currentSrcObject = screenEl.srcObject as MediaStream | null;
+      const screenStream = participant.screenStream;
+      if (!screenStream) return;
+      
+      const streamChanged = !currentSrcObject || currentSrcObject.id !== screenStream.id;
+      
+      if (streamChanged) {
+        screenEl.srcObject = screenStream;
+        screenEl.muted = false;
+        screenEl.play().catch(err => {
+          console.warn(`⚠️ [ParticipantVideo] Error reproduciendo pantalla:`, err);
+        });
+      }
+    }, 100);
+    
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [participant.screenStream, hasScreenStream]);
+
   return (
     <div
       className={`
@@ -322,21 +415,58 @@ export function ParticipantVideo({
         ${isMain ? 'h-full' : 'aspect-video'}
       `}
     >
-      {/* Video - Mostrar siempre que haya stream, independientemente del estado del track */}
-      {participant.stream && (
+      {/* Video de pantalla compartida - Mostrar como stream principal si está disponible */}
+      {hasScreenStream && (
+        <video
+          ref={remoteScreenRef}
+          className="absolute inset-0 w-full h-full object-contain z-10"
+          autoPlay
+          muted={false}
+          playsInline
+          controls={false}
+          style={{
+            opacity: screenTrackEnabled ? 1 : 0,
+            backgroundColor: '#000',
+            transition: 'opacity 0.3s ease-in-out',
+          }}
+          onLoadedMetadata={() => {
+            const screenEl = remoteScreenRef.current;
+            if (screenEl && screenEl.paused) {
+              screenEl.play().catch(err => {
+                console.warn(`⚠️ [ParticipantVideo] Error reproduciendo pantalla en onLoadedMetadata:`, err);
+              });
+            }
+          }}
+          onCanPlay={() => {
+            const screenEl = remoteScreenRef.current;
+            if (screenEl && screenEl.paused) {
+              screenEl.play().catch(err => {
+                console.warn(`⚠️ [ParticipantVideo] Error reproduciendo pantalla en onCanPlay:`, err);
+              });
+            }
+          }}
+        />
+      )}
+
+      {/* Video de cámara - Mostrar como overlay pequeño si hay pantalla, o como principal si no hay pantalla */}
+      {hasCameraStream && (
         <video
           ref={videoElement}
-          className={`absolute inset-0 w-full h-full object-cover z-10 ${
+          className={`absolute ${
+            hasScreenStream 
+              ? 'bottom-4 right-4 w-48 h-32 rounded-lg border-2 border-zinc-700 shadow-lg z-20' 
+              : 'inset-0 w-full h-full z-10'
+          } object-cover ${
             videoRef !== undefined ? '-scale-x-100' : ''
           }`}
           autoPlay
-          muted={videoRef !== undefined} // Solo silenciar el video local (espejo), remoto debe estar desmutado
+          muted={videoRef !== undefined}
           playsInline
-          controls={false} // No mostrar controles
+          controls={false}
           style={{
-            opacity: videoTrackEnabled ? 1 : 0, // Ocultar completamente si el track está deshabilitado
-            backgroundColor: '#000', // Fondo negro para evitar parpadeos
-            transition: 'opacity 0.3s ease-in-out', // Transición suave
+            opacity: videoTrackEnabled ? 1 : 0,
+            backgroundColor: '#000',
+            transition: 'opacity 0.3s ease-in-out',
           }}
           onLoadedMetadata={() => {
             console.log(`📹 [ParticipantVideo] onLoadedMetadata para ${participant.name}`);
@@ -408,8 +538,8 @@ export function ParticipantVideo({
         />
       )}
       
-      {/* Avatar - Mostrar cuando no hay stream, cuando el video track está deshabilitado, o cuando el video está en negro */}
-      {(!participant.stream || !videoTrackEnabled || (participant.stream && participant.stream.getVideoTracks().length === 0)) && (
+      {/* Avatar - Mostrar cuando no hay ningún stream activo */}
+      {!hasScreenStream && !hasCameraStream && (
         <div className="absolute inset-0 flex items-center justify-center bg-zinc-800 z-20">
           {showWaveform ? (
             <Waveform />
@@ -478,6 +608,13 @@ export function ParticipantVideo({
               participant.isCameraOff && (
                 <VideoOff className={`text-zinc-400 ${isMain ? 'w-5 h-5' : 'w-3.5 h-3.5'}`} />
               )
+            )}
+
+            {/* Screen Sharing Indicator */}
+            {participant.isScreenSharing && (
+              <div title="Compartiendo pantalla" aria-label="Compartiendo pantalla">
+                <Monitor className={`text-cyan-400 ${isMain ? 'w-5 h-5' : 'w-3.5 h-3.5'}`} />
+              </div>
             )}
           </div>
         </div>

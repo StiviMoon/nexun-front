@@ -15,9 +15,6 @@ const getFirebaseAuth = () => {
   return getAuth(app);
 };
 
-/**
- * Get Firebase ID token for Socket.IO authentication
- */
 const getIdToken = async (forceRefresh = false): Promise<string | null> => {
   if (typeof window === "undefined") {
     return null;
@@ -52,7 +49,7 @@ export interface VideoRoom {
   visibility: "public" | "private";
   code?: string;
   chatRoomId?: string;
-  chatRoomCode?: string; // Código del chat asociado (para salas privadas)
+  chatRoomCode?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -60,8 +57,8 @@ export interface VideoRoom {
 export interface VideoParticipant {
   userId: string;
   socketId: string;
-  userName?: string; // Nombre del usuario (opcional)
-  userEmail?: string; // Email del usuario (opcional)
+  userName?: string;
+  userEmail?: string;
   isAudioEnabled: boolean;
   isVideoEnabled: boolean;
   isScreenSharing: boolean;
@@ -73,109 +70,86 @@ export interface VideoSignalData {
   roomId: string;
   targetUserId?: string;
   data: unknown;
+  metadata?: {
+    isScreenSharing?: boolean;
+    streamType?: "camera" | "screen";
+  };
 }
+
+type CallbackMap = {
+  onRoomCreated?: (room: VideoRoom) => void;
+  onRoomJoined?: (data: { roomId: string; room: VideoRoom; participants: VideoParticipant[] }) => void;
+  onRoomLeft?: (data: { roomId: string }) => void;
+  onUserJoined?: (data: { roomId: string; userId: string; userName?: string }) => void;
+  onUserLeft?: (data: { roomId: string; userId: string }) => void;
+  onSignal?: (data: { type: string; roomId: string; fromUserId: string; data: unknown; metadata?: { isScreenSharing?: boolean; streamType?: "camera" | "screen" } }) => void;
+  onAudioToggled?: (data: { roomId: string; userId: string; enabled: boolean }) => void;
+  onVideoToggled?: (data: { roomId: string; userId: string; enabled: boolean }) => void;
+  onScreenToggled?: (data: { roomId: string; userId: string; enabled: boolean }) => void;
+  onScreenStarted?: (data: { roomId: string; userId: string; userName?: string }) => void;
+  onScreenStopped?: (data: { roomId: string; userId: string; userName?: string }) => void;
+  onRoomEnded?: (data: { roomId: string }) => void;
+  onError?: (error: { message: string; code?: string }) => void;
+};
 
 export class VideoService {
   private socket: Socket | null = null;
   private baseUrl: string;
   private useGateway: boolean;
+  private callbacks: CallbackMap = {};
 
   constructor(useGateway = false) {
     this.useGateway = useGateway;
     this.baseUrl = useGateway ? API_BASE_URL : VIDEO_SERVICE_URL;
   }
 
-  // Callbacks almacenados para re-registrarlos en reconexiones
-  private callbacks: {
-    onRoomCreated?: (room: VideoRoom) => void;
-    onRoomJoined?: (data: { roomId: string; room: VideoRoom; participants: VideoParticipant[] }) => void;
-    onRoomLeft?: (data: { roomId: string }) => void;
-    onUserJoined?: (data: { roomId: string; userId: string; userName?: string }) => void;
-    onUserLeft?: (data: { roomId: string; userId: string }) => void;
-    onSignal?: (data: { type: string; roomId: string; fromUserId: string; data: unknown }) => void;
-    onAudioToggled?: (data: { roomId: string; userId: string; enabled: boolean }) => void;
-    onVideoToggled?: (data: { roomId: string; userId: string; enabled: boolean }) => void;
-    onScreenToggled?: (data: { roomId: string; userId: string; enabled: boolean }) => void;
-    onRoomEnded?: (data: { roomId: string }) => void;
-    onError?: (error: { message: string; code?: string }) => void;
-  } = {};
-
   private registerAllListeners(): void {
-    if (!this.socket) {
-      console.warn("⚠️ [VideoService] No socket disponible para registrar listeners");
-      return;
-    }
+    if (!this.socket) return;
 
-    console.log(`🔄 [VideoService] Re-registrando todos los listeners en socket ${this.socket.id}`);
+    const eventMap: Array<[keyof CallbackMap, string]> = [
+      ['onRoomCreated', 'video:room:created'],
+      ['onRoomJoined', 'video:room:joined'],
+      ['onRoomLeft', 'video:room:left'],
+      ['onUserJoined', 'video:user:joined'],
+      ['onUserLeft', 'video:user:left'],
+      ['onSignal', 'video:signal'],
+      ['onAudioToggled', 'video:audio:toggled'],
+      ['onVideoToggled', 'video:video:toggled'],
+      ['onScreenToggled', 'video:screen:toggled'],
+      ['onScreenStarted', 'video:screen:started'],
+      ['onScreenStopped', 'video:screen:stopped'],
+      ['onRoomEnded', 'video:room:ended'],
+      ['onError', 'error'],
+    ];
 
-    // Re-registrar todos los callbacks almacenados (usar off primero para evitar duplicados)
-    if (this.callbacks.onRoomCreated) {
-      this.socket.off("video:room:created");
-      this.socket.on("video:room:created", this.callbacks.onRoomCreated);
-    }
-    if (this.callbacks.onRoomJoined) {
-      this.socket.off("video:room:joined");
-      this.socket.on("video:room:joined", this.callbacks.onRoomJoined);
-      console.log(`✅ [VideoService] Listener video:room:joined registrado en socket ${this.socket.id}`);
-    }
-    if (this.callbacks.onRoomLeft) {
-      this.socket.off("video:room:left");
-      this.socket.on("video:room:left", this.callbacks.onRoomLeft);
-    }
-    if (this.callbacks.onUserJoined) {
-      this.socket.off("video:user:joined");
-      this.socket.on("video:user:joined", (data) => {
-        if (this.callbacks.onUserJoined) this.callbacks.onUserJoined(data);
-      });
-    }
-    if (this.callbacks.onUserLeft) {
-      this.socket.off("video:user:left");
-      this.socket.on("video:user:left", this.callbacks.onUserLeft);
-    }
-    if (this.callbacks.onSignal) {
-      this.socket.off("video:signal");
-      this.socket.on("video:signal", this.callbacks.onSignal);
-    }
-    if (this.callbacks.onAudioToggled) {
-      this.socket.off("video:audio:toggled");
-      this.socket.on("video:audio:toggled", this.callbacks.onAudioToggled);
-    }
-    if (this.callbacks.onVideoToggled) {
-      this.socket.off("video:video:toggled");
-      this.socket.on("video:video:toggled", this.callbacks.onVideoToggled);
-    }
-    if (this.callbacks.onScreenToggled) {
-      this.socket.off("video:screen:toggled");
-      this.socket.on("video:screen:toggled", this.callbacks.onScreenToggled);
-    }
-    if (this.callbacks.onRoomEnded) {
-      this.socket.off("video:room:ended");
-      this.socket.on("video:room:ended", this.callbacks.onRoomEnded);
-    }
-    if (this.callbacks.onError) {
-      this.socket.off("error");
-      this.socket.on("error", this.callbacks.onError);
-    }
-    
-    console.log(`✅ [VideoService] Todos los listeners registrados en socket ${this.socket.id}`);
+    eventMap.forEach(([callbackKey, eventName]) => {
+      const callback = this.callbacks[callbackKey];
+      if (callback) {
+        this.socket!.off(eventName);
+        if (callbackKey === 'onUserJoined') {
+          this.socket!.on(eventName, (data) => {
+            if (this.callbacks.onUserJoined) {
+              this.callbacks.onUserJoined(data);
+            }
+          });
+        } else {
+          this.socket!.on(eventName, callback as (...args: unknown[]) => void);
+        }
+      }
+    });
   }
 
   async connect(): Promise<Socket> {
-    // Si ya hay un socket conectado, reutilizarlo en lugar de desconectar
     if (this.socket?.connected) {
-      console.log(`♻️ [VideoService] Reutilizando socket existente: ${this.socket.id}`);
       return this.socket;
     }
 
     const token = await getIdToken();
-
     if (!token) {
       throw new Error("No authentication token available");
     }
 
-    // Solo desconectar si hay un socket que NO está conectado
     if (this.socket && !this.socket.connected) {
-      console.log(`🧹 [VideoService] Desconectando socket antiguo no conectado`);
       this.socket.removeAllListeners();
       this.socket.disconnect();
     }
@@ -189,23 +163,19 @@ export class VideoService {
     });
 
     this.socket.on("connect", () => {
-      console.log(`✅ Connected to video service (socket: ${this.socket?.id})`);
-      // Re-registrar todos los listeners cuando se reconecta
-      // Esperar un poco para asegurar que el socket esté completamente listo
       setTimeout(() => {
         this.registerAllListeners();
       }, 100);
     });
 
-    this.socket.on("disconnect", (reason) => {
-      console.log(`❌ Disconnected from video service (reason: ${reason})`);
+    this.socket.on("disconnect", () => {
+      // Handle disconnect if needed
     });
 
     this.socket.on("error", (error: { message: string; code?: string }) => {
       console.error("Video socket error:", error);
     });
 
-    // Listen for token expiration
     this.socket.on("auth:error", async () => {
       const newToken = await getIdToken(true);
       if (newToken && this.socket) {
@@ -215,8 +185,6 @@ export class VideoService {
       }
     });
 
-    // Si el socket ya está conectado, registrar listeners inmediatamente
-    // Si no, se registrarán en el evento "connect"
     if (this.socket.connected) {
       this.registerAllListeners();
     }
@@ -224,7 +192,6 @@ export class VideoService {
     return this.socket;
   }
 
-  // Create a video room
   createRoom(name: string, description?: string, maxParticipants = 10, visibility: "public" | "private" = "private", createChat = true): void {
     if (!this.socket?.connected) {
       throw new Error("Not connected to video service");
@@ -238,19 +205,17 @@ export class VideoService {
     });
   }
 
-      // Join a video room by ID or code
-      joinRoom(roomIdOrCode: string, isCode = false): void {
-        if (!this.socket?.connected) {
-          throw new Error("Not connected to video service");
-        }
-        if (isCode) {
-          this.socket.emit("video:room:join", { code: roomIdOrCode });
-        } else {
-          this.socket.emit("video:room:join", { roomId: roomIdOrCode });
-        }
-      }
+  joinRoom(roomIdOrCode: string, isCode = false): void {
+    if (!this.socket?.connected) {
+      throw new Error("Not connected to video service");
+    }
+    if (isCode) {
+      this.socket.emit("video:room:join", { code: roomIdOrCode });
+    } else {
+      this.socket.emit("video:room:join", { roomId: roomIdOrCode });
+    }
+  }
 
-  // Leave a video room
   leaveRoom(roomId: string): void {
     if (!this.socket?.connected) {
       return;
@@ -258,7 +223,6 @@ export class VideoService {
     this.socket.emit("video:room:leave", { roomId });
   }
 
-  // Send WebRTC signal (compatible with SimplePeer)
   sendSignal(data: VideoSignalData): void {
     if (!this.socket?.connected) {
       throw new Error("Not connected to video service");
@@ -266,7 +230,6 @@ export class VideoService {
     this.socket.emit("video:signal", data);
   }
 
-  // Toggle audio
   toggleAudio(roomId: string, enabled: boolean): void {
     if (!this.socket?.connected) {
       throw new Error("Not connected to video service");
@@ -274,7 +237,6 @@ export class VideoService {
     this.socket.emit("video:toggle-audio", { roomId, enabled });
   }
 
-  // Toggle video
   toggleVideo(roomId: string, enabled: boolean): void {
     if (!this.socket?.connected) {
       throw new Error("Not connected to video service");
@@ -282,7 +244,6 @@ export class VideoService {
     this.socket.emit("video:toggle-video", { roomId, enabled });
   }
 
-  // Toggle screen sharing
   toggleScreen(roomId: string, enabled: boolean): void {
     if (!this.socket?.connected) {
       throw new Error("Not connected to video service");
@@ -290,7 +251,20 @@ export class VideoService {
     this.socket.emit("video:toggle-screen", { roomId, enabled });
   }
 
-  // End room (host only)
+  startScreenShare(roomId: string): void {
+    if (!this.socket?.connected) {
+      throw new Error("Not connected to video service");
+    }
+    this.socket.emit("video:screen:start", { roomId });
+  }
+
+  stopScreenShare(roomId: string): void {
+    if (!this.socket?.connected) {
+      throw new Error("Not connected to video service");
+    }
+    this.socket.emit("video:screen:stop", { roomId });
+  }
+
   endRoom(roomId: string): void {
     if (!this.socket?.connected) {
       throw new Error("Not connected to video service");
@@ -298,11 +272,8 @@ export class VideoService {
     this.socket.emit("video:room:end", { roomId });
   }
 
-  // Room events - Listeners
   onRoomCreated(callback: (room: VideoRoom) => void): void {
-    // Guardar callback para re-registrarlo en reconexiones
     this.callbacks.onRoomCreated = callback;
-    
     if (!this.socket) {
       throw new Error("Socket not initialized");
     }
@@ -310,37 +281,18 @@ export class VideoService {
   }
 
   onRoomJoined(callback: (data: { roomId: string; room: VideoRoom; participants: VideoParticipant[] }) => void): void {
-    // Guardar callback para re-registrarlo en reconexiones
     this.callbacks.onRoomJoined = callback;
     
     if (!this.socket) {
-      console.warn("⚠️ [VideoService] Socket no inicializado, callback guardado para registro posterior");
       return;
     }
 
     if (!this.socket.connected) {
-      console.warn(`⚠️ [VideoService] Socket no conectado (ID: ${this.socket.id}), callback guardado para registro posterior`);
       return;
     }
     
-    // Remover listener anterior si existe para evitar duplicados
     this.socket.off("video:room:joined");
-    
-    console.log(`📡 [VideoService] Registrando listener video:room:joined en socket ${this.socket.id}`);
-    
-    const wrappedCallback = (data: { roomId: string; room: VideoRoom; participants: VideoParticipant[] }) => {
-      console.log(`🔔 [VideoService] Evento video:room:joined recibido en callback registrado, socket ${this.socket?.id}`);
-      console.log(`📦 [VideoService] Datos del evento:`, data);
-      try {
-        callback(data);
-        console.log(`✅ [VideoService] Callback ejecutado exitosamente`);
-      } catch (error) {
-        console.error(`❌ [VideoService] Error ejecutando callback:`, error);
-      }
-    };
-    
-    this.socket.on("video:room:joined", wrappedCallback);
-    console.log(`✅ [VideoService] Listener video:room:joined registrado correctamente`);
+    this.socket.on("video:room:joined", callback);
   }
 
   onRoomLeft(callback: (data: { roomId: string }) => void): void {
@@ -351,12 +303,11 @@ export class VideoService {
   }
 
   onUserJoined(callback: (data: { roomId: string; userId: string; userName?: string }) => void): void {
+    this.callbacks.onUserJoined = callback;
     if (!this.socket) {
       throw new Error("Socket not initialized");
     }
-    this.socket.on("video:user:joined", (data: { roomId: string; userId: string; userName?: string }) => {
-      callback(data);
-    });
+    this.socket.on("video:user:joined", callback);
   }
 
   onUserLeft(callback: (data: { roomId: string; userId: string }) => void): void {
@@ -366,16 +317,16 @@ export class VideoService {
     this.socket.on("video:user:left", callback);
   }
 
-  // WebRTC signal listener (compatible with SimplePeer)
-  onSignal(callback: (data: { type: string; roomId: string; fromUserId: string; data: unknown }) => void): void {
+  onSignal(callback: (data: { type: string; roomId: string; fromUserId: string; data: unknown; metadata?: { isScreenSharing?: boolean; streamType?: "camera" | "screen" } }) => void): void {
+    this.callbacks.onSignal = callback;
     if (!this.socket) {
       throw new Error("Socket not initialized");
     }
     this.socket.on("video:signal", callback);
   }
 
-  // Audio/Video toggle events
   onAudioToggled(callback: (data: { roomId: string; userId: string; enabled: boolean }) => void): void {
+    this.callbacks.onAudioToggled = callback;
     if (!this.socket) {
       throw new Error("Socket not initialized");
     }
@@ -383,6 +334,7 @@ export class VideoService {
   }
 
   onVideoToggled(callback: (data: { roomId: string; userId: string; enabled: boolean }) => void): void {
+    this.callbacks.onVideoToggled = callback;
     if (!this.socket) {
       throw new Error("Socket not initialized");
     }
@@ -390,13 +342,31 @@ export class VideoService {
   }
 
   onScreenToggled(callback: (data: { roomId: string; userId: string; enabled: boolean }) => void): void {
+    this.callbacks.onScreenToggled = callback;
     if (!this.socket) {
       throw new Error("Socket not initialized");
     }
     this.socket.on("video:screen:toggled", callback);
   }
 
+  onScreenStarted(callback: (data: { roomId: string; userId: string; userName?: string }) => void): void {
+    this.callbacks.onScreenStarted = callback;
+    if (!this.socket) {
+      throw new Error("Socket not initialized");
+    }
+    this.socket.on("video:screen:started", callback);
+  }
+
+  onScreenStopped(callback: (data: { roomId: string; userId: string; userName?: string }) => void): void {
+    this.callbacks.onScreenStopped = callback;
+    if (!this.socket) {
+      throw new Error("Socket not initialized");
+    }
+    this.socket.on("video:screen:stopped", callback);
+  }
+
   onRoomEnded(callback: (data: { roomId: string }) => void): void {
+    this.callbacks.onRoomEnded = callback;
     if (!this.socket) {
       throw new Error("Socket not initialized");
     }
@@ -404,25 +374,23 @@ export class VideoService {
   }
 
   onError(callback: (error: { message: string; code?: string }) => void): void {
+    this.callbacks.onError = callback;
     if (!this.socket) {
       throw new Error("Socket not initialized");
     }
     this.socket.on("error", callback);
   }
 
-  // Remove event listeners
   off(event: string, callback?: (...args: unknown[]) => void): void {
     if (this.socket) {
       this.socket.off(event, callback);
     }
   }
 
-  // Get socket instance
   getSocket(): Socket | null {
     return this.socket;
   }
 
-  // Check if connected
   isConnected(): boolean {
     return this.socket?.connected ?? false;
   }
@@ -434,4 +402,3 @@ export class VideoService {
     }
   }
 }
-
