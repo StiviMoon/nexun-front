@@ -43,7 +43,7 @@ export function useMeetingRoom({ roomId }: UseMeetingRoomProps) {
   
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [activeTab, setActiveTab] = useState<SidebarTab>('participants');
-  const [activeSpeakerId, setActiveSpeakerId] = useState<string | null>(null);
+  const [activeSpeakerId] = useState<string | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
 
   // Usar el hook de video call que maneja WebRTC
