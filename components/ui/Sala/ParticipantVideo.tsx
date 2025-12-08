@@ -375,6 +375,8 @@ export function ParticipantVideo({
 
   const hasScreenStream = participant.screenStream && screenTrackEnabled;
   const hasCameraStream = participant.stream && videoTrackEnabled;
+  // Mostrar avatar si la cámara está desactivada (incluso si hay stream)
+  const shouldShowAvatar = participant.isCameraOff || !hasCameraStream;
 
   // Actualizar stream de pantalla cuando cambia
   useEffect(() => {
@@ -449,7 +451,7 @@ export function ParticipantVideo({
       )}
 
       {/* Video de cámara - Mostrar como overlay pequeño si hay pantalla, o como principal si no hay pantalla */}
-      {hasCameraStream && (
+      {participant.stream && hasCameraStream && !shouldShowAvatar && (
         <video
           ref={videoElement}
           className={`absolute ${
@@ -464,7 +466,7 @@ export function ParticipantVideo({
           playsInline
           controls={false}
           style={{
-            opacity: videoTrackEnabled ? 1 : 0,
+            opacity: 1,
             backgroundColor: '#000',
             transition: 'opacity 0.3s ease-in-out',
           }}
@@ -538,8 +540,8 @@ export function ParticipantVideo({
         />
       )}
       
-      {/* Avatar - Mostrar cuando no hay ningún stream activo */}
-      {!hasScreenStream && !hasCameraStream && (
+      {/* Avatar - Mostrar cuando la cámara está desactivada o no hay ningún stream activo */}
+      {shouldShowAvatar && !hasScreenStream && (
         <div className="absolute inset-0 flex items-center justify-center bg-zinc-800 z-20">
           {showWaveform ? (
             <Waveform />
