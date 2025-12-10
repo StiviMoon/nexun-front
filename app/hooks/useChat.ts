@@ -10,30 +10,71 @@ import {
 import { ChatService } from "@/utils/services/chatService";
 import { useChatStore } from "@/utils/chatStore";
 
+/**
+ * Interfaz de retorno del hook useChat
+ * @interface UseChatReturn
+ */
 interface UseChatReturn {
-  // Connection state
+  /** Estado de conexión al servidor de chat */
   isConnected: boolean;
+  /** Estado de conexión en progreso */
   isConnecting: boolean;
+  /** Error actual, si existe */
   error: ChatError | null;
 
-  // Data
+  /** Lista de salas de chat disponibles */
   rooms: ChatRoom[];
+  /** Mensajes organizados por ID de sala */
   messages: Record<string, ChatMessage[]>;
+  /** Sala de chat actualmente seleccionada */
   currentRoom: ChatRoom | null;
 
-  // Actions
+  /** Conecta al servidor de chat */
   connect: () => Promise<void>;
+  /** Desconecta del servidor de chat */
   disconnect: () => void;
+  /** Se une a una sala de chat (con código opcional para salas privadas) */
   joinRoom: (roomId: string, code?: string) => void;
+  /** Se une a una sala de chat usando solo el código */
   joinRoomByCode: (code: string) => void;
+  /** Abandona una sala de chat */
   leaveRoom: (roomId: string) => void;
+  /** Envía un mensaje a una sala */
   sendMessage: (roomId: string, content: string, type?: "text" | "image" | "file") => void;
+  /** Crea una nueva sala de chat */
   createRoom: (data: CreateRoomData) => void;
+  /** Obtiene los detalles de una sala */
   getRoom: (roomId: string) => void;
+  /** Obtiene los mensajes de una sala */
   getMessages: (roomId: string, limit?: number, lastMessageId?: string) => void;
+  /** Establece la sala de chat actual */
   setCurrentRoom: (room: ChatRoom | null) => void;
 }
 
+/**
+ * Hook personalizado para gestionar la conexión y operaciones de chat en tiempo real.
+ * 
+ * Este hook proporciona una interfaz simplificada para interactuar con el servicio de chat,
+ * manejando la conexión Socket.IO, el estado de las salas, mensajes y eventos en tiempo real.
+ * 
+ * @param {boolean} [useGateway=false] - Si es true, usa el gateway API en lugar del servicio de chat directo
+ * @returns {UseChatReturn} Objeto con el estado y funciones del chat
+ * 
+ * @example
+ * ```tsx
+ * const { 
+ *   isConnected, 
+ *   rooms, 
+ *   messages, 
+ *   connect, 
+ *   sendMessage 
+ * } = useChat();
+ * 
+ * useEffect(() => {
+ *   connect();
+ * }, []);
+ * ```
+ */
 export const useChat = (useGateway = false): UseChatReturn => {
   const chatServiceRef = useRef<ChatService | null>(null);
   const listenersRegisteredRef = useRef(false);
@@ -57,7 +98,13 @@ export const useChat = (useGateway = false): UseChatReturn => {
     [rooms, currentRoomId]
   );
 
-  // Connect to Socket.IO server using ChatService
+  /**
+   * Conecta al servidor de Socket.IO usando ChatService.
+   * Registra todos los listeners de eventos necesarios y maneja la reconexión automática.
+   * 
+   * @returns {Promise<void>} Promesa que se resuelve cuando la conexión se establece
+   * @throws {Error} Si falla la conexión o no hay token de autenticación
+   */
   const connect = useCallback(async () => {
     if (chatServiceRef.current?.isConnected()) {
       return;
@@ -210,7 +257,10 @@ export const useChat = (useGateway = false): UseChatReturn => {
     setError
   ]);
 
-  // Disconnect from server
+  /**
+   * Desconecta del servidor de chat y limpia todos los recursos.
+   * Resetea el estado del store y elimina todas las referencias.
+   */
   const disconnect = useCallback(() => {
     if (chatServiceRef.current) {
       chatServiceRef.current.disconnect();
@@ -220,7 +270,13 @@ export const useChat = (useGateway = false): UseChatReturn => {
     reset();
   }, [reset]);
 
-  // Join a room (with optional code for private rooms)
+  /**
+   * Se une a una sala de chat.
+   * 
+   * @param {string} roomId - ID de la sala a la que unirse
+   * @param {string} [code] - Código de acceso opcional para salas privadas
+   * @throws {Error} Si no hay conexión o falla la operación
+   */
   const joinRoom = useCallback(
     (roomId: string, code?: string) => {
       if (!chatServiceRef.current?.isConnected()) {
@@ -241,7 +297,13 @@ export const useChat = (useGateway = false): UseChatReturn => {
     [setError, setCurrentRoomId]
   );
 
-  // Join a room by code only (searches for room with that code)
+  /**
+   * Se une a una sala de chat usando solo el código.
+   * Busca automáticamente la sala que corresponde al código proporcionado.
+   * 
+   * @param {string} code - Código de la sala (mínimo 6 caracteres)
+   * @throws {Error} Si el código es inválido, no hay conexión o falla la operación
+   */
   const joinRoomByCode = useCallback(
     (code: string) => {
       if (!chatServiceRef.current?.isConnected()) {
@@ -269,7 +331,11 @@ export const useChat = (useGateway = false): UseChatReturn => {
     [setError]
   );
 
-  // Leave a room
+  /**
+   * Abandona una sala de chat.
+   * 
+   * @param {string} roomId - ID de la sala a abandonar
+   */
   const leaveRoom = useCallback(
     (roomId: string) => {
       if (!chatServiceRef.current?.isConnected()) {
@@ -286,7 +352,14 @@ export const useChat = (useGateway = false): UseChatReturn => {
     []
   );
 
-  // Send a message
+  /**
+   * Envía un mensaje a una sala de chat.
+   * 
+   * @param {string} roomId - ID de la sala donde enviar el mensaje
+   * @param {string} content - Contenido del mensaje
+   * @param {"text" | "image" | "file"} [type="text"] - Tipo de mensaje
+   * @throws {Error} Si no hay conexión, el contenido está vacío o falla la operación
+   */
   const sendMessage = useCallback(
     (roomId: string, content: string, type: "text" | "image" | "file" = "text") => {
       if (!chatServiceRef.current?.isConnected()) {
@@ -310,7 +383,12 @@ export const useChat = (useGateway = false): UseChatReturn => {
     [setError]
   );
 
-  // Create a room
+  /**
+   * Crea una nueva sala de chat.
+   * 
+   * @param {CreateRoomData} data - Datos de la sala a crear (nombre, tipo, visibilidad, etc.)
+   * @throws {Error} Si no hay conexión, faltan campos requeridos o falla la operación
+   */
   const createRoom = useCallback(
     (data: CreateRoomData) => {
       if (!chatServiceRef.current?.isConnected()) {
@@ -345,7 +423,12 @@ export const useChat = (useGateway = false): UseChatReturn => {
     [setError]
   );
 
-  // Get room details
+  /**
+   * Obtiene los detalles de una sala de chat.
+   * 
+   * @param {string} roomId - ID de la sala
+   * @throws {Error} Si no hay conexión o falla la operación
+   */
   const getRoom = useCallback(
     (roomId: string) => {
       if (!chatServiceRef.current?.isConnected()) {
@@ -365,7 +448,14 @@ export const useChat = (useGateway = false): UseChatReturn => {
     [setError]
   );
 
-  // Get messages for a room
+  /**
+   * Obtiene los mensajes de una sala de chat.
+   * 
+   * @param {string} roomId - ID de la sala
+   * @param {number} [limit=50] - Número máximo de mensajes a obtener
+   * @param {string} [lastMessageId] - ID del último mensaje para paginación
+   * @throws {Error} Si no hay conexión o falla la operación
+   */
   const getMessages = useCallback(
     (roomId: string, limit = 50, lastMessageId?: string) => {
       if (!chatServiceRef.current?.isConnected()) {
@@ -385,13 +475,20 @@ export const useChat = (useGateway = false): UseChatReturn => {
     [setError]
   );
 
-  // Cleanup on unmount
+  /**
+   * Limpia la conexión cuando el componente se desmonta.
+   */
   useEffect(() => {
     return () => {
       disconnect();
     };
   }, [disconnect]);
 
+  /**
+   * Actualiza la sala de chat actual en el store.
+   * 
+   * @param {ChatRoom | null} room - Sala a establecer como actual, o null para limpiar
+   */
   const updateCurrentRoom = useCallback(
     (room: ChatRoom | null) => {
       setCurrentRoomId(room?.id ?? null);

@@ -7,10 +7,33 @@ import { Sidebar } from '@/components/ui/Sala/Sidebar';
 import { ControlBar } from '@/components/ui/Sala/ControlBar';
 import { useMeetingRoom } from '@/hooks/useMeetingRoom';
 
+/**
+ * Props de la página de sala de reunión.
+ * @interface PageProps
+ */
 interface PageProps {
+  /** Parámetros de la ruta, incluyendo el ID de la sala */
   params: { id: string };
 }
 
+/**
+ * Página principal de la sala de reunión de video.
+ * 
+ * Esta página gestiona la interfaz de usuario para las reuniones de video,
+ * incluyendo el header con información de la reunión, la cuadrícula de videos
+ * de los participantes, la barra lateral con participantes y chat, y la barra
+ * de controles para gestionar audio, video, pantalla compartida y salir.
+ * 
+ * El layout es responsive: en móviles, la barra de controles está fija en la
+ * parte inferior y la barra lateral se muestra como un overlay deslizable.
+ * En desktop, todo se muestra en un layout de columnas.
+ * 
+ * @param {PageProps} props - Props del componente
+ * @param {PageProps.params} props.params - Parámetros de la ruta
+ * @param {string} props.params.id - ID de la sala de reunión
+ * 
+ * @returns {JSX.Element} Componente de la página de sala
+ */
 export default function SalaPage({ params }: PageProps) {
   const [currentTime, setCurrentTime] = useState('');
   const [meetingName, setMeetingName] = useState<string>('Nombre de la reunión');
