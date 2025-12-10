@@ -16,10 +16,20 @@ import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { firebaseConfig } from '@/config/firebase';
 
+/**
+ * Props de la página de sala de reunión dinámica.
+ * @interface PageProps
+ */
 interface PageProps {
+  /** Parámetros de la ruta, incluyendo el ID de la sala */
   params: { id: string };
 }
 
+/**
+ * Obtiene la instancia de autenticación de Firebase.
+ * 
+ * @returns {ReturnType<typeof getAuth> | null} Instancia de auth o null si no está en el cliente
+ */
 const getFirebaseAuth = () => {
   if (typeof window === "undefined") {
     return null;
@@ -29,7 +39,11 @@ const getFirebaseAuth = () => {
   return getAuth(app);
 };
 
-// Helper para obtener apps de Firebase
+/**
+ * Helper para obtener la app de Firebase.
+ * 
+ * @returns {ReturnType<typeof initializeApp> | null} Instancia de la app o null si no está en el cliente
+ */
 const getFirebaseApp = () => {
   if (typeof window === "undefined") {
     return null;
@@ -38,6 +52,32 @@ const getFirebaseApp = () => {
   return existingApps.length > 0 ? existingApps[0] : initializeApp(firebaseConfig);
 };
 
+/**
+ * Página principal de la sala de reunión de video (versión dinámica con ID en la ruta).
+ * 
+ * Esta página gestiona la interfaz de usuario completa para las reuniones de video,
+ * integrando tanto el servicio de video (WebRTC) como el servicio de chat.
+ * 
+ * Características principales:
+ * - Conexión automática a la sala de video y chat asociado
+ * - Gestión de participantes y sus streams (cámara y pantalla compartida)
+ * - Sincronización de estado entre video y chat
+ * - Obtención de información del usuario desde Firestore
+ * - Layout responsive con controles adaptativos
+ * - Modal para invitar participantes
+ * 
+ * El componente maneja la lógica compleja de sincronización entre:
+ * - El hook useVideoCall para WebRTC y gestión de streams
+ * - El hook useChat para mensajería en tiempo real
+ * - El store de video para estado global
+ * - Firestore para información de usuarios
+ * 
+ * @param {PageProps} props - Props del componente
+ * @param {PageProps.params} props.params - Parámetros de la ruta
+ * @param {string} props.params.id - ID de la sala de reunión
+ * 
+ * @returns {JSX.Element} Componente de la página de sala
+ */
 export default function SalaPage({ params }: PageProps) {
   const [currentTime, setCurrentTime] = useState('');
   const [meetingName, setMeetingName] = useState<string>('Nombre de la reunión');

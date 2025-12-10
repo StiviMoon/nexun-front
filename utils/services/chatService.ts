@@ -17,7 +17,10 @@ const getFirebaseAuth = () => {
 };
 
 /**
- * Get Firebase ID token for Socket.IO authentication
+ * Obtiene el token de ID de Firebase para autenticación con Socket.IO.
+ * 
+ * @param {boolean} [forceRefresh=false] - Si es true, fuerza la renovación del token
+ * @returns {Promise<string | null>} Token de ID o null si no hay usuario autenticado
  */
 const getIdToken = async (forceRefresh = false): Promise<string | null> => {
   if (typeof window === "undefined") {
@@ -42,12 +45,33 @@ const getIdToken = async (forceRefresh = false): Promise<string | null> => {
   }
 };
 
+/**
+ * Servicio para gestionar la comunicación de chat en tiempo real mediante Socket.IO.
+ * 
+ * Esta clase maneja la conexión al servidor de chat, el registro de eventos,
+ * y proporciona métodos para interactuar con salas y mensajes.
+ * 
+ * @class ChatService
+ * 
+ * @example
+ * ```typescript
+ * const chatService = new ChatService(false);
+ * await chatService.connect();
+ * chatService.onMessage((message) => {
+ *   console.log('Nuevo mensaje:', message);
+ * });
+ * chatService.joinRoom('room-id', 'optional-code');
+ * ```
+ */
 export class ChatService {
   private socket: Socket | null = null;
   private baseUrl: string;
   private useGateway: boolean;
 
-  // Callbacks almacenados para re-registrarlos en reconexiones
+  /**
+   * Callbacks almacenados para re-registrarlos en reconexiones.
+   * @private
+   */
   private callbacks: {
     onMessage?: (message: ChatMessage) => void;
     onRoomsList?: (rooms: ChatRoom[]) => void;
@@ -61,11 +85,22 @@ export class ChatService {
     onError?: (error: { message: string; code?: string }) => void;
   } = {};
 
+  /**
+   * Crea una instancia del servicio de chat.
+   * 
+   * @param {boolean} [useGateway=false] - Si es true, usa el gateway API en lugar del servicio directo
+   */
   constructor(useGateway = false) {
     this.useGateway = useGateway;
     this.baseUrl = useGateway ? API_BASE_URL : CHAT_SERVICE_URL;
   }
 
+  /**
+   * Registra todos los listeners de eventos en el socket.
+   * Se llama automáticamente después de la conexión y en reconexiones.
+   * 
+   * @private
+   */
   private registerAllListeners(): void {
     if (!this.socket) return;
 
@@ -91,6 +126,13 @@ export class ChatService {
     });
   }
 
+  /**
+   * Conecta al servidor de Socket.IO.
+   * Obtiene el token de autenticación de Firebase y establece la conexión.
+   * 
+   * @returns {Promise<Socket>} Instancia del socket conectado
+   * @throws {Error} Si no hay token de autenticación disponible
+   */
   async connect(): Promise<Socket> {
     if (this.socket?.connected) {
       return this.socket;
@@ -186,7 +228,13 @@ export class ChatService {
     return this.socket;
   }
 
-  // Join a room (with optional code for private rooms)
+  /**
+   * Se une a una sala de chat.
+   * 
+   * @param {string} roomId - ID de la sala a la que unirse
+   * @param {string} [code] - Código de acceso opcional para salas privadas
+   * @throws {Error} Si no hay conexión al servicio
+   */
   joinRoom(roomId: string, code?: string): void {
     if (!this.socket?.connected) {
       throw new Error("Not connected to chat service");
@@ -194,7 +242,13 @@ export class ChatService {
     this.socket.emit("room:join", { roomId, code });
   }
 
-  // Join a room by code only (searches for room with that code)
+  /**
+   * Se une a una sala de chat usando solo el código.
+   * Busca automáticamente la sala que corresponde al código.
+   * 
+   * @param {string} code - Código de la sala
+   * @throws {Error} Si no hay conexión al servicio
+   */
   joinRoomByCode(code: string): void {
     if (!this.socket?.connected) {
       throw new Error("Not connected to chat service");
@@ -202,7 +256,11 @@ export class ChatService {
     this.socket.emit("room:join-by-code", { code });
   }
 
-  // Leave a room
+  /**
+   * Abandona una sala de chat.
+   * 
+   * @param {string} roomId - ID de la sala a abandonar
+   */
   leaveRoom(roomId: string): void {
     if (!this.socket?.connected) {
       return;
@@ -210,7 +268,14 @@ export class ChatService {
     this.socket.emit("room:leave", { roomId });
   }
 
-  // Send a message
+  /**
+   * Envía un mensaje a una sala de chat.
+   * 
+   * @param {string} roomId - ID de la sala donde enviar el mensaje
+   * @param {string} content - Contenido del mensaje
+   * @param {"text" | "image" | "file"} [type="text"] - Tipo de mensaje
+   * @throws {Error} Si no hay conexión al servicio
+   */
   sendMessage(roomId: string, content: string, type: "text" | "image" | "file" = "text"): void {
     if (!this.socket?.connected) {
       throw new Error("Not connected to chat service");
@@ -222,8 +287,18 @@ export class ChatService {
     });
   }
 
-  // Create a room
-  // Backend expects: name, type ("direct" | "group" | "channel"), visibility ("public" | "private"), and optionally description, participants
+  /**
+   * Crea una nueva sala de chat.
+   * El backend espera: name, type ("direct" | "group" | "channel"), 
+   * visibility ("public" | "private"), y opcionalmente description y participants.
+   * 
+   * @param {string} name - Nombre de la sala
+   * @param {"direct" | "group" | "channel"} type - Tipo de sala
+   * @param {"public" | "private"} visibility - Visibilidad de la sala
+   * @param {string} [description] - Descripción opcional de la sala
+   * @param {string[]} [participants=[]] - Lista de IDs de participantes iniciales
+   * @throws {Error} Si no hay conexión al servicio
+   */
   createRoom(
     name: string,
     type: "direct" | "group" | "channel",
@@ -243,7 +318,12 @@ export class ChatService {
     });
   }
 
-  // Get room info
+  /**
+   * Obtiene la información de una sala de chat.
+   * 
+   * @param {string} roomId - ID de la sala
+   * @throws {Error} Si no hay conexión al servicio
+   */
   getRoom(roomId: string): void {
     if (!this.socket?.connected) {
       throw new Error("Not connected to chat service");
@@ -251,7 +331,14 @@ export class ChatService {
     this.socket.emit("room:get", roomId);
   }
 
-  // Get messages
+  /**
+   * Obtiene los mensajes de una sala de chat.
+   * 
+   * @param {string} roomId - ID de la sala
+   * @param {number} [limit=50] - Número máximo de mensajes a obtener
+   * @param {string | null} [startAfter=null] - ID del mensaje para paginación
+   * @throws {Error} Si no hay conexión al servicio
+   */
   getMessages(roomId: string, limit = 50, startAfter: string | null = null): void {
     if (!this.socket?.connected) {
       throw new Error("Not connected to chat service");
@@ -263,7 +350,11 @@ export class ChatService {
     });
   }
 
-  // Request rooms list
+  /**
+   * Solicita la lista de salas de chat disponibles.
+   * 
+   * @throws {Error} Si no hay conexión al servicio
+   */
   listRooms(): void {
     if (!this.socket?.connected) {
       throw new Error("Not connected to chat service");
@@ -271,6 +362,11 @@ export class ChatService {
     this.socket.emit("rooms:list");
   }
 
+  /**
+   * Registra un callback para recibir nuevos mensajes.
+   * 
+   * @param {(message: ChatMessage) => void} callback - Función a llamar cuando llega un mensaje
+   */
   onMessage(callback: (message: ChatMessage) => void): void {
     this.callbacks.onMessage = callback;
     if (!this.socket) return;
@@ -278,6 +374,11 @@ export class ChatService {
     this.socket.on("message:new", callback);
   }
 
+  /**
+   * Registra un callback para recibir la lista de salas.
+   * 
+   * @param {(rooms: ChatRoom[]) => void} callback - Función a llamar cuando se recibe la lista
+   */
   onRoomsList(callback: (rooms: ChatRoom[]) => void): void {
     this.callbacks.onRoomsList = callback;
     if (!this.socket) return;
@@ -285,6 +386,11 @@ export class ChatService {
     this.socket.on("rooms:list", callback);
   }
 
+  /**
+   * Registra un callback para cuando se abandona una sala.
+   * 
+   * @param {(data: { roomId: string }) => void} callback - Función a llamar cuando se abandona una sala
+   */
   onRoomLeft(callback: (data: { roomId: string }) => void): void {
     this.callbacks.onRoomLeft = callback;
     if (!this.socket) return;
@@ -292,6 +398,11 @@ export class ChatService {
     this.socket.on("room:left", callback);
   }
 
+  /**
+   * Registra un callback para cuando se une a una sala.
+   * 
+   * @param {(data: { roomId: string; room: ChatRoom }) => void} callback - Función a llamar cuando se une a una sala
+   */
   onRoomJoined(callback: (data: { roomId: string; room: ChatRoom }) => void): void {
     this.callbacks.onRoomJoined = callback;
     if (!this.socket) return;
@@ -299,6 +410,11 @@ export class ChatService {
     this.socket.on("room:joined", callback);
   }
 
+  /**
+   * Registra un callback para cuando un usuario se conecta.
+   * 
+   * @param {(data: { userId: string }) => void} callback - Función a llamar cuando un usuario se conecta
+   */
   onUserOnline(callback: (data: { userId: string }) => void): void {
     this.callbacks.onUserOnline = callback;
     if (!this.socket) return;
@@ -306,6 +422,11 @@ export class ChatService {
     this.socket.on("user:online", callback);
   }
 
+  /**
+   * Registra un callback para cuando un usuario se desconecta.
+   * 
+   * @param {(data: { userId: string }) => void} callback - Función a llamar cuando un usuario se desconecta
+   */
   onUserOffline(callback: (data: { userId: string }) => void): void {
     this.callbacks.onUserOffline = callback;
     if (!this.socket) return;
@@ -313,6 +434,11 @@ export class ChatService {
     this.socket.on("user:offline", callback);
   }
 
+  /**
+   * Registra un callback para cuando se crea una nueva sala.
+   * 
+   * @param {(room: ChatRoom) => void} callback - Función a llamar cuando se crea una sala
+   */
   onRoomCreated(callback: (room: ChatRoom) => void): void {
     this.callbacks.onRoomCreated = callback;
     if (!this.socket) return;
@@ -320,6 +446,11 @@ export class ChatService {
     this.socket.on("room:created", callback);
   }
 
+  /**
+   * Registra un callback para cuando se reciben los detalles de una sala.
+   * 
+   * @param {(room: ChatRoom) => void} callback - Función a llamar cuando se reciben los detalles
+   */
   onRoomDetails(callback: (room: ChatRoom) => void): void {
     this.callbacks.onRoomDetails = callback;
     if (!this.socket) return;
@@ -327,6 +458,11 @@ export class ChatService {
     this.socket.on("room:details", callback);
   }
 
+  /**
+   * Registra un callback para cuando se recibe una lista de mensajes.
+   * 
+   * @param {(data: { roomId: string; messages: ChatMessage[] }) => void} callback - Función a llamar cuando se recibe la lista
+   */
   onMessagesList(callback: (data: { roomId: string; messages: ChatMessage[] }) => void): void {
     this.callbacks.onMessagesList = callback;
     if (!this.socket) return;
@@ -334,6 +470,11 @@ export class ChatService {
     this.socket.on("messages:list", callback);
   }
 
+  /**
+   * Registra un callback para cuando ocurre un error.
+   * 
+   * @param {(error: { message: string; code?: string }) => void} callback - Función a llamar cuando ocurre un error
+   */
   onError(callback: (error: { message: string; code?: string }) => void): void {
     this.callbacks.onError = callback;
     if (!this.socket) return;
@@ -341,23 +482,39 @@ export class ChatService {
     this.socket.on("error", callback);
   }
 
-  // Remove event listeners
+  /**
+   * Elimina listeners de eventos del socket.
+   * 
+   * @param {string} event - Nombre del evento
+   * @param {(...args: unknown[]) => void} [callback] - Callback específico a eliminar (opcional)
+   */
   off(event: string, callback?: (...args: unknown[]) => void): void {
     if (this.socket) {
       this.socket.off(event, callback);
     }
   }
 
-  // Get socket instance
+  /**
+   * Obtiene la instancia del socket.
+   * 
+   * @returns {Socket | null} Instancia del socket o null si no está conectado
+   */
   getSocket(): Socket | null {
     return this.socket;
   }
 
-  // Check if connected
+  /**
+   * Verifica si hay una conexión activa al servidor.
+   * 
+   * @returns {boolean} True si está conectado, false en caso contrario
+   */
   isConnected(): boolean {
     return this.socket?.connected ?? false;
   }
 
+  /**
+   * Desconecta del servidor de chat y limpia la instancia del socket.
+   */
   disconnect(): void {
     if (this.socket) {
       this.socket.disconnect();
