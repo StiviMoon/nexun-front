@@ -45,10 +45,14 @@ export default function EquipoDesarrollo() {
               <div className="px-4 py-2 rounded-lg border border-purple-500/50 bg-purple-500/10 text-center">
                 <span className="text-purple-300 text-sm">Versión de Sitio: 1.0.0</span>
               </div>
-              <button className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 transition-all">
+              <a
+                href="/MANUAL.pdf"
+                download
+                className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 transition-all"
+              >
                 <span className="text-white text-sm">Descargar Manual de Usuario</span>
                 <Download className="w-4 h-4 text-white" />
-              </button>
+              </a>
             </div>
           </div>
 
