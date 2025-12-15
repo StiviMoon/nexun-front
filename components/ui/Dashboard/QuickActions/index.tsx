@@ -2,11 +2,14 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import QuickActionCard from './QuickActionCard';
 import RecentMeetingsSection from './RecentMeetingsSection';
 import { QuickActionsProps } from '../types';
 
 const QuickActions: React.FC<QuickActionsProps> = ({ actions, recentMeetings }) => {
+  const router = useRouter();
+
   return (
     <div className="mb-8 sm:mb-10 lg:mb-12">
       <h2 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6">Acciones Rápidas</h2>
@@ -26,8 +29,7 @@ const QuickActions: React.FC<QuickActionsProps> = ({ actions, recentMeetings }) 
         <RecentMeetingsSection 
           meetings={recentMeetings}
           onMeetingClick={(meetingId) => {
-            console.log('Navigating to meeting:', meetingId);
-            // Aquí puedes agregar la navegación a la reunión
+            router.push(`/Sala/${meetingId}`);
           }}
         />
       </div>

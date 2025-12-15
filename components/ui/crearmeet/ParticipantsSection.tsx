@@ -12,20 +12,44 @@ const ParticipantsSection: React.FC<ParticipantsSectionProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Validar formato de email
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
   // Simulación de búsqueda de usuarios
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      // Aquí conectarías con tu API de búsqueda de usuarios
-      const newParticipant: Participant = {
-        id: Date.now().toString(),
-        name: searchQuery,
-        email: `${searchQuery.toLowerCase().replace(' ', '.')}@example.com`,
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${searchQuery}`
-      };
-      onAddParticipant(newParticipant);
-      setSearchQuery('');
+    const trimmedQuery = searchQuery.trim();
+    
+    if (!trimmedQuery) {
+      return;
     }
+
+    // Validar si es un email válido
+    if (!isValidEmail(trimmedQuery)) {
+      alert('Por favor ingresa un email válido');
+      return;
+    }
+
+    // Verificar si el participante ya existe
+    const emailExists = participants.some(p => p.email.toLowerCase() === trimmedQuery.toLowerCase());
+    if (emailExists) {
+      alert('Este participante ya está agregado');
+      setSearchQuery('');
+      return;
+    }
+
+    // Aquí conectarías con tu API de búsqueda de usuarios
+    const newParticipant: Participant = {
+      id: Date.now().toString(),
+      name: trimmedQuery.split('@')[0].replace(/[._]/g, ' '),
+      email: trimmedQuery.toLowerCase(),
+      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${trimmedQuery}`
+    };
+    onAddParticipant(newParticipant);
+    setSearchQuery('');
   };
 
   return (
@@ -36,10 +60,10 @@ const ParticipantsSection: React.FC<ParticipantsSectionProps> = ({
       <form onSubmit={handleSearch} className="relative mb-6">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
         <input
-          type="text"
+          type="email"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Buscar por nombre o email"
+          placeholder="Ingresa el email del participante"
           className="w-full bg-zinc-800 border border-zinc-700 rounded-lg pl-12 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
         />
       </form>

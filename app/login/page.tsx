@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Mail } from "lucide-react";
 import AuthCard from "@/app/components/auth/AuthCard";
 import AuthShell from "@/app/components/auth/AuthShell";
@@ -92,6 +93,16 @@ const LoginPage = () => {
               autoComplete="current-password"
               required
             />
+          </div>
+
+          {/* Forgot Password Link */}
+          <div className="flex justify-end">
+            <Link
+              href="/recuperar1"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              ¿Olvidaste tu contraseña?
+            </Link>
           </div>
 
           <SubmitButton

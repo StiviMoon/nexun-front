@@ -259,3 +259,28 @@ export const useLogout = () => {
   });
 };
 
+/**
+ * Hook para eliminar cuenta de usuario
+ */
+export const useDeleteAccount = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (password?: string): Promise<void> => {
+      const response = await apiClient.deleteAccount(password);
+      
+      if (!response.success) {
+        throw new Error(response.error || "Failed to delete account");
+      }
+    },
+    onSuccess: () => {
+      // Limpiar todo el cache de autenticación después de eliminar cuenta
+      queryClient.removeQueries({ queryKey: authKeys.all });
+    },
+    onError: () => {
+      // Limpiar cache incluso si hay error
+      queryClient.removeQueries({ queryKey: authKeys.all });
+    },
+  });
+};
+

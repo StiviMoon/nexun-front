@@ -15,7 +15,7 @@ interface ProfileProps {
   onSignOut: () => Promise<void>;
   onUpdateProfile: (data: ProfileFormData) => Promise<void>;
   onChangePassword: (currentPassword: string, newPassword: string) => Promise<void>;
-  onDeleteAccount: () => Promise<void>;
+  onDeleteAccount: (password?: string) => Promise<void>;
   isSignOutLoading?: boolean;
   isUpdateLoading?: boolean;
   isPasswordLoading?: boolean;
@@ -69,6 +69,7 @@ const Profile: React.FC<ProfileProps> = ({
           <DeleteAccount
             onDelete={onDeleteAccount}
             isLoading={isDeleteLoading}
+            isThirdPartyUser={isThirdPartyUser}
           />
         );
       default:
