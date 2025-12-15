@@ -1,16 +1,20 @@
 "use client";
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import Profile from '@/components/ui/Profile';
 import { AppLayout } from '@/components/ui/AppLayout';
 import { useAuthWithQuery } from '@/hooks/useAuthWithQuery';
-import { useUpdateProfile, useUpdatePassword } from '@/hooks/useAuthApi';
+import { useUpdateProfile, useUpdatePassword, useDeleteAccount } from '@/hooks/useAuthApi';
 import { ProfileFormData } from '@/components/ui/Profile/types';
+import { verifyPassword } from '@/utils/auth/firebaseAuthAPI';
 
 const PerfilPage: React.FC = () => {
+  const router = useRouter();
   const { currentUser, signOutUser, isSignOutLoading, setCurrentUser } = useAuthWithQuery();
   const updateProfileMutation = useUpdateProfile();
   const updatePasswordMutation = useUpdatePassword();
+  const deleteAccountMutation = useDeleteAccount();
 
   const providerIds = currentUser?.providerIds || [];
   const isThirdPartyUser = providerIds.some((provider) => provider === "google.com" || provider === "github.com");
@@ -68,9 +72,42 @@ const PerfilPage: React.FC = () => {
     }
   };
 
-  const handleDeleteAccount = async () => {
-    console.log('delete account');
-    return Promise.resolve();
+  const handleDeleteAccount = async (password?: string) => {
+    if (!currentUser?.email) {
+      throw new Error('No se pudo obtener la información del usuario');
+    }
+
+    // Solo validar contraseña si NO es usuario de terceros y se proporciona contraseña
+    if (!isThirdPartyUser && password) {
+      try {
+        await verifyPassword(currentUser.email, password);
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('auth/invalid-credential')) {
+          throw new Error('Contraseña incorrecta. Por favor, verifica tu contraseña.');
+        }
+        throw new Error('Error al verificar la contraseña. Inténtalo de nuevo.');
+      }
+    }
+
+    // Proceder a eliminar la cuenta
+    try {
+      await deleteAccountMutation.mutateAsync(password);
+      
+      // Cerrar sesión y redirigir
+      try {
+        await signOutUser();
+      } catch {
+        // Continuar incluso si el logout falla
+      }
+      
+      // Redirigir a la página de inicio
+      router.push('/inicio');
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Error al eliminar la cuenta. Inténtalo de nuevo.');
+    }
   };
 
   if (!currentUser) {
@@ -92,6 +129,7 @@ const PerfilPage: React.FC = () => {
         isSignOutLoading={isSignOutLoading}
         isUpdateLoading={updateProfileMutation.isPending}
         isPasswordLoading={updatePasswordMutation.isPending}
+        isDeleteLoading={deleteAccountMutation.isPending}
       />
     </AppLayout>
   );

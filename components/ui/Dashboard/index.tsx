@@ -30,8 +30,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       title: 'Reunión Rápida',
       icon: 'plus',
       onClick: () => {
-        console.log('Iniciando reunión rápida...');
-        // router.push('/reunion-rapida');
+        router.push('/crearReunion');
       }
     },
     {
@@ -39,8 +38,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       title: 'Unirse Con Código',
       icon: 'link',
       onClick: () => {
-        console.log('Unirse con código...');
-        // router.push('/unirse');
+        router.push('/UnirseReu');
       }
     }
   ];

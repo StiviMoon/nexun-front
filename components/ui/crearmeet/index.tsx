@@ -67,8 +67,34 @@ const CreateMeeting: React.FC<CreateMeetingProps> = ({
   };
 
   const handleCreateMeeting = async () => {
+    // Validar título
     if (!formData.title.trim()) {
       alert('Por favor ingresa un título para la reunión');
+      return;
+    }
+
+    // Validar fecha
+    if (!formData.date) {
+      alert('Por favor selecciona una fecha para la reunión');
+      return;
+    }
+
+    // Validar que la fecha sea futura
+    const selectedDate = new Date(`${formData.date}T${formData.time || '00:00'}`);
+    if (selectedDate < new Date()) {
+      alert('La fecha y hora de la reunión deben ser futuras');
+      return;
+    }
+
+    // Validar hora
+    if (!formData.time) {
+      alert('Por favor selecciona una hora para la reunión');
+      return;
+    }
+
+    // Validar duración
+    if (!formData.duration || parseInt(formData.duration, 10) < 1) {
+      alert('Por favor ingresa una duración válida (mínimo 1 minuto)');
       return;
     }
 

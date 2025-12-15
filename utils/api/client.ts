@@ -336,6 +336,13 @@ class ApiClient {
       body: JSON.stringify(passwordData),
     });
   }
+
+  async deleteAccount(password?: string): Promise<AuthApiResponse> {
+    return this.request<AuthApiResponse>("/api/auth/account", {
+      method: "DELETE",
+      ...(password && { body: JSON.stringify({ password }) }),
+    });
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);

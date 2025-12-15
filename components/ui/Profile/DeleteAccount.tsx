@@ -5,11 +5,12 @@ import React, { useState } from 'react';
 import { Trash2, Eye, EyeOff } from 'lucide-react';
 
 interface DeleteAccountProps {
-  onDelete: (password: string) => Promise<void>;
+  onDelete: (password?: string) => Promise<void>;
   isLoading: boolean;
+  isThirdPartyUser?: boolean;
 }
 
-const DeleteAccount: React.FC<DeleteAccountProps> = ({ onDelete, isLoading }) => {
+const DeleteAccount: React.FC<DeleteAccountProps> = ({ onDelete, isLoading, isThirdPartyUser = false }) => {
   const [confirmText, setConfirmText] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -23,15 +24,23 @@ const DeleteAccount: React.FC<DeleteAccountProps> = ({ onDelete, isLoading }) =>
       return;
     }
 
-    if (!password.trim()) {
+    // Solo validar contraseña si NO es usuario de terceros
+    if (!isThirdPartyUser && !password.trim()) {
       setError('Debes ingresar tu contraseña');
       return;
     }
 
     try {
-      await onDelete(password);
-    } catch {
-      setError('Error al eliminar la cuenta. Verifica tu contraseña.');
+      // Pasar contraseña solo si no es usuario de terceros
+      await onDelete(isThirdPartyUser ? undefined : password);
+    } catch (error) {
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError(isThirdPartyUser 
+          ? 'Error al eliminar la cuenta. Inténtalo de nuevo.' 
+          : 'Error al eliminar la cuenta. Verifica tu contraseña.');
+      }
     }
   };
 
@@ -92,29 +101,41 @@ const DeleteAccount: React.FC<DeleteAccountProps> = ({ onDelete, isLoading }) =>
           />
         </div>
 
-        {/* Password Input */}
-        <div className="mb-6">
-          <p className="text-white text-sm mb-3">
-            Ingresa tu contraseña
-          </p>
-          <div className="relative">
-            <input
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 pr-12 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
-              aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-            >
-              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-            </button>
+        {/* Password Input - Solo para usuarios con email/password */}
+        {!isThirdPartyUser && (
+          <div className="mb-6">
+            <p className="text-white text-sm mb-3">
+              Ingresa tu contraseña
+            </p>
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 pr-12 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+              >
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Info para usuarios de terceros */}
+        {isThirdPartyUser && (
+          <div className="mb-6 bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+            <p className="text-yellow-400 text-sm">
+              <strong>Nota:</strong> Como iniciaste sesión con un proveedor externo (Google o GitHub), 
+              no se requiere contraseña para eliminar tu cuenta. Solo confirma escribiendo "ELIMINAR".
+            </p>
+          </div>
+        )}
 
         {/* Separator Line */}
         <div className="border-t border-zinc-700 my-6"></div>
@@ -140,7 +161,11 @@ const DeleteAccount: React.FC<DeleteAccountProps> = ({ onDelete, isLoading }) =>
           <button
             type="button"
             onClick={handleDelete}
-            disabled={isLoading || confirmText.toUpperCase() !== 'ELIMINAR' || !password.trim()}
+            disabled={
+              isLoading || 
+              confirmText.toUpperCase() !== 'ELIMINAR' || 
+              (!isThirdPartyUser && !password.trim())
+            }
             className="flex-1 px-6 py-3 rounded-lg font-semibold text-white bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? 'Eliminando...' : 'Eliminar Perfil'}
